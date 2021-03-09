@@ -1,0 +1,4 @@
+todo.txt
+# exclude paths & secrets, users will copy templates from -dist
+youtube-dl-web-viewer.conf
+app/flaskapp.wsgi
