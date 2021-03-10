@@ -1,10 +1,5 @@
 from configparser import ConfigParser
 
-def app_start():
-	# read text config
-	# if missing or permissions issue, 
-	return
-
 def page_load():
 	return
 

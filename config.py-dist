@@ -1,0 +1,7 @@
+# Config for youtube-dl-web-viewer
+# Missing values will fall back to defaults from app/__init__.py
+
+# Database path: will be created on first run
+DATABASE='data.sqlite'
+# Secret key: set this to something random to protect your sessions
+SECRET_KEY='dev'

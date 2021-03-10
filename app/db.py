@@ -3,23 +3,22 @@ import sqlite3
 from datetime import datetime
 
 def check_exists():
+	# just check file
 	return
 
-def create_empty():
+def execute(sql):
+	try:
+		
+	#with closing(sqlite3.connect #etc
 	return
 
-def cursor():
-	return
-
-def query():
-	with closing(
-	return
+def create(filename):
+	# get filename from config
+	return # if success
 
 # Extra logging on top of basicConfig
 class log_to_db(logging.Handler):
-	"""
-	Custom log handler that adds to the database
-	"""
+	"""Custom log handler to add to the database"""
 	def emit(self, record):
 		log_datetime = datetime.fromtimestamp(record.created)
 		log_level = str(record.levelname)

@@ -1,3 +1,13 @@
+# notes
 todo.txt
-# exclude secrets, users will copy template from -dist
-app/flaskapp.wsgi
+# secrets, users will copy template from -dist
+config.py
+# virtualenv (create separately on remote)
+venv/
+# build stuff
+dist/
+build/
+*.egg-info/
+# compiled
+*.pyc
+__pycache__/
