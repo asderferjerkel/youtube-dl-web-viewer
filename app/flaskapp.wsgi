@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
-
 import logging
 import sys
 logging.basicConfig(stream=sys.stderr)
 
-# Set the path based on where you've extracted youtube-dl-web-viewer/
+# Set the path to the folder containing app/ (e.g. /path/to/youtube-dl-web-viewer)
 sys.path.insert(0, '/home/asdfghjkl/youtube-dl-web-viewer')
-from app import app as application
+
+from app import create_app
+application = creat_app()

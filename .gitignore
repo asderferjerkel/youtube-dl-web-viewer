@@ -1,7 +1,8 @@
 # notes
 todo.txt
-# secrets, users will copy template from -dist
+# paths and secrets, users will copy template from -dist
 config.py
+app/flaskapp.wsgi
 # virtualenv (create separately on remote)
 venv/
 # build stuff
