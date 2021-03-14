@@ -1,6 +1,7 @@
 from flask import render_template, redirect, request, session
 from app import app, helpers, db, api
 
+"""
 # Read config file when restarted
 try:
 	config = read_conf(config_file)
@@ -15,6 +16,7 @@ def check_conf():
 		config
 	except NameError:
 		return redirect(url_for('initialise', e = 'conf'))
+"""
 
 @app.route('/')
 def index():
@@ -34,8 +36,6 @@ def settings():
 @app.route('/init')
 def initialise():
 	# if GET
-	  # if e = conf
-	    # return .conf missing/permissions message, retry link to /init (no query)
 	  # if db doesn't exist (check for file)
 	    # return POST button to create (need some crsf protec)
 	  # else

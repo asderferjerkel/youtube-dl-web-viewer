@@ -1,5 +1,6 @@
 from contextlib import closing
 import sqlite3
+import logging
 from datetime import datetime
 
 def check_exists():
@@ -7,7 +8,7 @@ def check_exists():
 	return
 
 def execute(sql):
-	try:
+	#try:
 		
 	#with closing(sqlite3.connect #etc
 	return
@@ -25,7 +26,7 @@ class log_to_db(logging.Handler):
 		log_message = str(record.msg)
 		
 		query = """INSERT INTO log (log_datetime, log_level, log_message) VALUES (%s, %s, %s)"""
-		with db.cursor
+		#with db.cursor
 
 def add_db_log():
-	
+	return
