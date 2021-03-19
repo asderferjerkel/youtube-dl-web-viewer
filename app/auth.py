@@ -193,7 +193,8 @@ def login_required(user_class = 'user', api = False):
 				
 				# User is not an admin
 				if api:
-					return jsonify({'message': 'Unauthorised'}), 403
+					return jsonify({'status': 'error',
+									'message': 'Unauthorised'}), 403
 				flash('Page is restricted to admin users.')
 				return redirect(url_for('index'))
 			
@@ -203,7 +204,8 @@ def login_required(user_class = 'user', api = False):
 			except sqlite3.OperationalError as e:
 				# Params table missing, go to init
 				if api:
-					return jsonify({'message': 'Database error'}), 500
+					return jsonify({'status': 'error',
+									'message': 'Database error'}), 500
 				return redirect(url_for('db.init'))
 			
 			if user_class == 'guest' and params['guests_can_view']:
@@ -213,7 +215,8 @@ def login_required(user_class = 'user', api = False):
 			# Guests disallowed
 			flash('You must be logged in to view this page.')
 			if api:
-				return jsonify({'message': 'Unauthorised'}), 403
+				return jsonify({'status': 'error',
+								'message': 'Unauthorised'}), 403
 			return redirect(url_for('auth.login'))
 		
 		return wrapped_view
