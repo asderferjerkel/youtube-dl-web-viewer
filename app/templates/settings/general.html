@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import render_field %}
+
+{% block content %}
+	<h2>{{ title }}</h2>
+	
+	<div class="form">
+		<form method="POST" action="/settings/general">
+			{{ form.csrf_token }}
+			{{ render_field(form.refresh_interval) }}
+			<div class="field_help">(set 0 to disable) Refresh the database if it is older than x seconds (can also use 10m, 12h, 3d, 1w etc for minutes/hours/days/weeks)</div>
+			{{ render_field(form.disk_path) }}
+			<div class="field_help">Path must exist. Subfolders will be treated as playlists. You can move your videos and update this path without a database rescan.</div>
+			{{ render_field(form.web_path) }}
+			<div class="field_help">Also thumbnails and subtitles. HTTP basic auth user/password can be supplied like https://user:password@example.com/videos/</div>
+			{{ render_field(form.metadata_source) }}
+			<div class="field_help">json falls back to filename if missing, requires database rescan to update existing video metadata</div>
+			{{ render_field(form.filename_format) }}
+			<div class="field_help">(optional) See below for help</div>
+			{{ render_field(form.filename_delimiter) }}
+			<div class="field_help">(optional) Include spaces, see below for help</div>
+			{{ render_field(form.public_can_view) }}
+			<div class="field_help">If checked, videos are publicly viewable. Does not protect video URLs or HTTP basic auth username/password. Guests cannot access settings or refresh/rescan the database.</div>
+			<input name="submit" type="submit" value="Update">
+		</form>
+	</div>
+	
+	<div>
+		# refresh/rescan/clear buttons
+		# set both disabled on click until job completed (same on page load if task running)
+	</div>
+	
+	<h3>Help</h3>
+	<dl>
+		<dt>Database refresh</dt>
+		<dd>youtube-dl-web-viewer uses a database to keep track of your playlists and videos. This database is not updated automatically when you add new videos to your folders, but can be updated on a schedule. The simplest way to add a schedule is to set the <strong>database refresh interval</strong> to a number of seconds (or e.g. 30m for 30 minutes, 12h for 12 hours, 1d for 1 day etc.). Every time the video page is reloaded by a logged-in user, it will check if the database was last updated more than <em>x</em> seconds ago and if so, trigger a refresh.</dd>
+		<dd>In this case the database will only be updated once a user visits the video page, so you could instead run a regular refresh on the backend using something like <a href="https://www.computerhope.com/unix/ucrontab.htm">cron</a> or Task Scheduler. Your crontab entry could look like this:</dd>
+		<dd><pre>0 0 * * 1	export FLASK_APP=app; cd /path/to/youtube-dl-web-viewer && venv/bin/flask refresh</pre></dd>
+		<dd>This would trigger a refresh at 00:00 every Monday.</dd>
+		<dd>Alternatively, if you already run a shell script to regularly download videos, you could trigger a rescan once downloads are complete by adding <pre>export FLASK_APP=app; cd /path/to/youtube-dl-web-viewer && venv/bin/flask refresh</pre> to the end of your script.</dd>
+		<dd>Bear in mind the user you run your crontab entry or shell script as should have write access to the youtube-dl-web-viewer directory (to update the database) and read access to your video path (to scan for new downloads). If you set up a schedule outside this script or prefer not to refresh the database automatically, set the <strong>database refresh interval</strong> to 0 to disable refreshing from the web interface.</dd>
+		<dt>Paths</dt>
+		<dd>You need to provide two paths: a folder path on disk which will be scanned for videos, and a base URL where they can be accessed over the web.</dd>
+		<dd>Disk path: e.g. <pre>/home/user/videos/</pre>. If the path contains subfolders, they will be treated as separate playlists. Thumbnails and metadata .json files, if they exist, will be searched for in the same folder as their associated videos and matched by filename. Nesting is currently not supported, so any nested subfolders will just appear as separate playlists.</dd>
+		<dd>Web path: e.g. <pre>https://example.com/videos/. This script does not host the video files themselves, so you should set up your webserver separately to serve your disk path. It combines the web path with the subfolder and filename to form URLs for the videos and thumbnails. For example, if the <pre>/home/user/videos</pre> directory contained a video at <pre>playlist 1/video.mp4</pre> and your web path was <pre>https://example.com/content/</pre>, the URL formed would be <pre>https://example.com/content/playlist%201/video.mp4</pre>. The simplest way to serve your disk path to the web is to create a symlink in your public_html folder, for example:</dd>
+		<dd><pre>ln -s /home/user/videos /var/www/public_html/videos</pre></dd>
+		<dd>Bear in mind the user your webserver is running as will require read access to the path and its contents to be able to serve videos.</dd>
+		<dt>Metadata source</dt>
+		<dd>By default, youtube-dl-web-viewer will search for a .json file matching each video's filename to collect its metadata, falling back to the filename if it is missing. You can change <strong>json</strong> to <strong>filename</strong> to only use the filename for metadata.</dd>
+		<dd>json metadata files are saved if you use youtube-dl's <pre>--write-info-json</pre> option, but if you don't collect them or some videos are missing them, you can optionally specify the <strong>video filename format</strong> to get metadata from there instead. The script recognises the following parameters:</dd>
+		<dd>
+			<ul>
+				<li><pre>{position}</pre>: Playlist position (e.g. 123 or 00045 from youtube-dl's <pre>playlist_index</pre> or <pre>autonumber</pre>)</li>
+				<li><pre>{title}</pre>: Video title</li>
+				<li><pre>{id}</pre>: Video ID</li>
+				<li><pre>{date}</pre>: Upload date (YYYYMMDD)</li>
+				<li><pre>{skip}</pre>: Skip a parameter not recognised by this script</li>
+			</ul>
+		</dd>
+		<dd>Use the <strong>video filename delimiter</strong> to specify how your parameters are separated, including spaces (e.g. <pre> - </pre>). Since video titles could contain your delimiter string, if you include <pre>{title}</pre> in your format template, the parser will first try to match the other parameters to the left and right of the title, leaving what remains as the video title. This is likely to break with some filename formats, so I recommend you download .json metadata along with your videos!</dd>
+	</dl>
+	
+{% endblock %}

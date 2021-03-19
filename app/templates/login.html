@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import render_field %}
+
+{% block content %}
+	<h2>{{ title }}</h2>
+	<form method="POST" action="/login">
+		{{ form.csrf_token }}
+		{{ render_field(form.username) }}
+		{{ render_field(form.password) }}
+		<input name="submit" type="submit" value="Login">
+	</form>
+{% endblock %}

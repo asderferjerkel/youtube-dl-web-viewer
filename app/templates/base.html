@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		{% if title %}
+			<title>{{ title }} | youtube-dl-web-viewer</title>
+		{% else %}
+			<title>youtube-dl-web-viewer</title>
+		{% endif %}
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+	</head>
+	
+	<body>
+		<div id="container">
+			<header>
+				<h1>yt-dl web</h1>
+			</header>
+			{% if g.user %}
+				<nav>navigation</nav>
+			{% endif %}
+						
+			{% with messages = get_flashed_messages() %}
+				{% if messages %}
+					<section id="messagaes">
+					{% for message in messages %}
+						<div>{{ message }}</div>
+					{% endfor %}
+					</section>
+				{% endif %}
+			{% endwith %}
+			
+			<section id="content">
+				{% block content %}{% endblock %}
+			</section>
+		</div>
+	</body>
+</html>

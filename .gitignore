@@ -3,6 +3,8 @@ todo.txt
 # paths and secrets, users will copy template from -dist
 config.py
 app/flaskapp.wsgi
+data.sqlite
+data.sqlite-journal
 # virtualenv (create separately on remote)
 venv/
 # build stuff
