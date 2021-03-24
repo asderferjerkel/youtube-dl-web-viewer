@@ -8,7 +8,7 @@
 	{% endif %}
 	
 	<div class="form">
-		<form method="POST" action="/init">
+		<form method="POST" action="{{ url_for('db.init') }}">
 			{{ form.csrf_token }}
 			{{ form.submit }}
 		</form>

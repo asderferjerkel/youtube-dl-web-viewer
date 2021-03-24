@@ -1,11 +1,15 @@
 import functools
+import sqlite3
+import logging
 
 from pathlib import Path
 
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash	
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, BooleanField, validators
+from wtforms import StringField, PasswordField, SelectField, BooleanField, HiddenField, validators
+from wtforms.validators import ValidationError
 
 from app.auth import login_required, add_user, update_user, LoginUser, AddUser, UpdateUser, AdminUpdateUser, AdminUpdateUsers
 from app.db import get_db, get_params
@@ -23,27 +27,29 @@ def is_folder(form, field):
 # Settings form
 class GeneralSettings(FlaskForm):
 	# Allow 0 or a non-zero integer optionally followed by s, m, h, d, w
-	refresh_interval = StringField('Database refresh interval (seconds)', [validators.Optional(), validators.Regexp(u'^(?:0|[1-9]+\\d*[smhdw]?)$', message = 'Incorrect interval format')])
+	refresh_interval = StringField('Database refresh interval (seconds)', [validators.Regexp(u'^(?:0|[1-9]+\\d*[smhdw]?)$', message = 'Incorrect interval format (set to 0 to disable)')])
 	disk_path = StringField('Path on disk to scan for videos', [is_folder])
 	web_path = StringField('Web path that serves videos', [validators.URL(require_tld = False)])
-	metadata_source = SelectField('Get video metadata from', choices = [('json', 'filename')])
+	web_path_username = StringField('HTTP basic auth username, [validators.Optional()]')
+	web_path_password = StringField('HTTP basic auth password, [validators.Optional()]')
+	metadata_source = SelectField('Get video metadata from', choices = [('json', 'json'), ('filename', 'filename')])
 	filename_format = StringField('Video filename format', [validators.Optional()])
 	filename_delimiter = StringField('Video filename delimiter', [validators.Optional()])
-	public_can_view = BooleanField('Enable guest access')
+	guests_can_view = BooleanField('Enable guest access')
 
 @blueprint.route('/firstrun', methods = ('GET', 'POST'))
 def first_run():
 	"""Create the first user after the database is initialised"""
 	# Deny if any users registered
 	try:
-		users = get_db().execute('SELECT id FROM users').fetchone()
+		params = get_params()
 	except sqlite3.OperationalError:
-		flash('Database error: could not check registered users')
-		return redirect(url_for('index'))
+		# Params table missing, go to init
+		return redirect(url_for('db.init'))
 	else:
-		if users is not None:
-			flash('First user already created')
-			return redirect(url_for('index'))
+		if params['setup_complete'] == 1:
+			flash('Setup already completed')
+			return redirect(url_for('settings.general'))
 	
 	# Warn if development keys are being used
 	check_conf()
@@ -60,11 +66,19 @@ def first_run():
 		except sqlite3.OperationalError:
 			flash('Failed to create account')
 		else:
-			flash('Account created successfully')
 			# Log in immediately
 			session.clear()
 			session['user_id'] = user_id
-			return redirect(url_for('settings.general'))
+			flash('Account created successfully')
+			# Mark setup as complete
+			db = get_db()
+			try:
+				db.execute('UPDATE params SET setup_complete = 1 ORDER BY rowid LIMIT 1')
+			except sqlite3.OperationalError:
+				flash('Could not mark setup as complete')
+			else:
+				db.commit()
+				return redirect(url_for('settings.general'))
 	
 	return render_template('settings/firstrun.html', title = 'Create admin user', form = form)
 
@@ -72,8 +86,6 @@ def first_run():
 @login_required('admin')
 def general():
 	"""General settings (restricted to admin users)"""
-	# Warn if development keys are being used
-	check_conf()
 	
 	# Update settings
 	settings_form = GeneralSettings()
@@ -90,8 +102,10 @@ def general():
 		# jinja2 autoescapes in templates so web path should be safe enough (famous last words lol)
 		disk_path = settings_form.disk_path.data
 		web_path = settings_form.web_path.data
-		if disk_path[-1] != '/':
-			disk_path = disk_path + '/'
+		web_path_username = settings_form.web_path_username.data
+		web_path_password = settings_form.web_path_password.data
+		#if disk_path[-1] != '/':
+		#	disk_path = disk_path + '/'
 		if web_path[-1] != '/':
 			web_path = web_path + '/'
 		
@@ -102,10 +116,12 @@ def general():
 		
 		db = get_db()
 		try:
-			db.execute('UPDATE params SET refresh_interval = ?, disk_path = ?, web_path = ?, metadata_source = ?, filename_format = ?, filename_delimiter = ?, guests_can_view = ?', (
+			db.execute('UPDATE params SET refresh_interval = ?, disk_path = ?, web_path = ?, web_path_username = ?, web_path_password = ?, metadata_source = ?, filename_format = ?, filename_delimiter = ?, guests_can_view = ?', (
 				refresh_interval,
 				disk_path,
 				web_path,
+				web_path_username,
+				web_path_password,
 				metadata_source,
 				filename_format,
 				filename_delimiter,
@@ -116,20 +132,39 @@ def general():
 		else:
 			db.commit()
 			flash('Settings updated.')
+			# Redirect so a refresh doesn't resubmit the form
+			return redirect(url_for('settings.general'))
+			
+			try:
+				params = get_params()
+			except sqlite3.OperationalError as e:
+				flash('Failed to get current settings: ' + str(e))
+			else:
+				# Check if this is the first time saving settings
+				if params['last_refreshed'] == 0:
+					flash('Setup complete! Click "Refresh database" below to scan for videos for the first time.')
 	
-	# Pre-fill settings from database (after update, if took place)
-	try:
-		params = get_params()
-	except sqlite3.OperationalError as e:
-		flash('Failed to get current settings: ' + str(e))
-	else:
-		settings_form = GeneralSettings(data = params)
+	if request.method == 'GET':
+		# Warn if development keys are being used
+		check_conf()
 		
-		# Check if this is the first time saving settings
-		if params['last_refreshed'] == 0:
-			flash('Setup complete! Click "Refresh database" below to scan for videos for the first time.')
+		# Pre-fill settings from database
+		try:
+			params = get_params()
+		except sqlite3.OperationalError as e:
+			flash('Failed to get current settings: ' + str(e))
+		else:
+			# Preserve choices for metadata_source but set selected to current setting
+			# Convert sqlite3.Row to dict
+			params = {key: params[key] for key in params.keys()}
+			# Save current setting for metadata_source and remove from dict
+			metadata_source = params['metadata_source']
+			del params['metadata_source']
+			settings_form = GeneralSettings(data = params)
+			# Set selected to current setting
+			settings_form.metadata_source.default = metadata_source
 	
-	return render_template('settings/general.html', title = 'General settings', form = form)
+	return render_template('settings/general.html', title = 'General settings', form = settings_form)
 
 @blueprint.route('/user', methods = ('GET', 'POST'))
 @login_required('user')
@@ -140,13 +175,26 @@ def user():
 	
 	# Admin-only settings
 	if g.user['is_admin']:
-		# Warn if development keys are being used
-		check_conf()
+		# Add users (before update so it can prefill with new user)
+		add_user_form = AddUser()
+		
+		if add_user_form.add.data and add_user_form.validate():
+			username = add_user_form.username.data
+			password = add_user_form.password.data
+			
+			try:
+				add_user(username, password)
+			except sqlite3.OperationalError:
+				flash('Database error: could not add user')
+			else:
+				flash('User added')
+				return redirect(url_for('settings.user'))
 		
 		# Update users
 		update_users_form = AdminUpdateUsers()
 		
-		if update_users_form.validate_on_submit():
+		# Check for submit button content before validate to allow multiple forms per page: https://stackoverflow.com/a/39766205
+		if update_users_form.update_many.data and update_users_form.validate():
 			try:
 				for user in update_users_form.users:
 					update_user(id = user.user_id.data, username = user.username.data, password = user.password.data, is_admin = user.is_admin.data, delete_user = user.delete_user.data)
@@ -154,50 +202,54 @@ def user():
 				flash('Database error: could not update users')
 			else:
 				flash('Users updated')
+				return redirect(url_for('settings.user'))
 		
-		# Pre-fill users from database (after update, if took place)
-		try:
-			# Exclude self
-			users = get_db().execute('SELECT id, username, is_admin FROM users WHERE id != ?', g.user['id']).fetchall()
-		except sqlite3.OperationalError as e:
-			flash('Could not load user data: ' + str(e))
-		else:
-			# Only display if there are users other than self
-			if len(users) > 0:
-				# Create a subform for each user
-				for user in users:
-					user_form = AdminUpdateUser()
-					user_form.user_id = user['id']
-					user_form.username = user['username']
-					user_form.is_admin.default = 'checked' if user['is_admin'] else ''
-					
-					# Append it to the parent form
-					update_users_form.users.append_entry(user_form)
-					
-		# Add users
-		add_user_form = AddUser()
-		
-		if add_user_form.validate_on_submit():
-			username = add_user_form.username.data
-			password = add_user_form.password.data
+		# Don't prefill users until form successfully validates so it doesn't reset on a failed validation
+		if request.method == 'GET':
+			# Warn if development keys are being used
+			check_conf()
 			
-			add_user(username, password)
-		
+			try:
+				# Exclude self
+				users = get_db().execute('SELECT id, username, is_admin FROM users WHERE id != ?', (g.user['id'], )).fetchall()
+			except sqlite3.OperationalError as e:
+				flash('Could not load user data: ' + str(e))
+			else:
+				while len(update_users_form.users) > 0:
+					# Clear existing entries
+					update_users_form.users.pop_entry()
+				# Only display if there are users other than self
+				if len(users) > 0:
+					# Create a subform for each user
+					for user in users:
+						# Insert current data as default
+						update_users_form.users.append_entry({'user_id': user['id'], 'username': user['username'], 'is_admin': 'checked' if user['is_admin'] else ''})
+				else:
+					# Hide form entirely
+					update_users_form = None
+	
 	# Update self
 	update_self_form = UpdateUser()
 	
-	if update_self_form.validate_on_submit():
+	if update_self_form.update.data and update_self_form.validate():
 		current_password = update_self_form.current_password.data
 		new_password = update_self_form.new_password.data
 		
-		if not check_password_hash(g.user['password'], current_password):
-			flash('Current password is incorrect')
+		# todo: this can be a validator on UpdateUser form
+		try:
+			user = get_db().execute('SELECT password FROM users WHERE id = ?', (g.user['id'], )).fetchone()
+		except sqlite3.OperationalError:
+			flash('Database error: could not check current password')
 		else:
-			try:
-				update_user(id = g.user['id'], password = new_password)
-			except sqlite3.OperationalError:
-				flash('Database error: could not change password')
+			if user is None or not check_password_hash(user['password'], current_password):
+				flash('Current password is incorrect')
 			else:
-				flash('Password changed')
+				try:
+					update_user(id = g.user['id'], password = new_password)
+				except sqlite3.OperationalError:
+					flash('Database error: could not change password')
+				else:
+					flash('Password updated')
+					return redirect(url_for('settings.user'))
 	
 	return render_template('settings/user.html', title = 'User settings', update_users_form = update_users_form, add_user_form = add_user_form, update_self_form = update_self_form)

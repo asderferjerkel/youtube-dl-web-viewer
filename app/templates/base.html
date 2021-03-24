@@ -15,7 +15,29 @@
 				<h1>yt-dl web</h1>
 			</header>
 			{% if g.user %}
-				<nav>navigation</nav>
+				<nav id="user">
+					<ul>
+						<li><a href="{{ url_for('settings.user') }}">{{ g.user['username'] }}</a></li>
+						<li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+					</ul>
+				</nav>
+				{% if g.user['is_admin'] == 1 %}
+					<nav id="navigation">
+						<ul>
+							{% for item in nav.top %}
+								<li class="{{ 'active' if item.is_active }}">
+									<a href="{{ item.url }}">{{ item.label }}</a>
+								</li>
+							{% endfor %}	
+						</ul>
+					</nav>
+				{% endif %}
+			{% else %}
+				<nav id="user">
+					<ul>
+						<li><a href="{{ url_for('auth.login') }}">Login</a></li>
+					</ul>
+				</nav>
 			{% endif %}
 						
 			{% with messages = get_flashed_messages() %}

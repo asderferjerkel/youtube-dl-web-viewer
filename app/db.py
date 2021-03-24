@@ -42,7 +42,7 @@ def create_db():
 	"""Clear any existing data and create empty tables"""
 	with current_app.open_resource('create_db.sql') as file:
 		get_db().executescript(file.read().decode('utf8'))
-	get_db.commit()
+	get_db().commit()
 
 @click.command('create-db')
 @with_appcontext
@@ -82,6 +82,11 @@ def clear_log():
 	"""Clear the error log"""
 	get_db().execute('DELETE from error_log')
 
+def get_log():
+	"""List logged errors"""
+	# todo: limit, start_at
+	return get_db().execute('SELECT * FROM error_log ORDER BY rowid DESC').fetchall()
+
 def get_params():
 	"""Retrieve settings from the database"""
 	params = get_db().execute('SELECT * FROM params ORDER BY rowid LIMIT 1').fetchone()
@@ -102,23 +107,22 @@ def init():
 		# Logged in, allow if admin
 		if not g.user['is_admin']:
 			flash('Only admin users can recreate the database')
-			return redirect(url_for('index'))
+			return redirect(url_for('index.index'))
 		
 		message = 'Detected an existing database. Initialising will clear all data including users and settings, but will not remove video files. Are you sure?'
 	
 	else:
 		# Not logged in, allow if tables missing
 		try:
-			users = get_db().execute('SELECT id FROM users').fetchone()
+			params = get_params()
 		except sqlite3.OperationalError:
 			# Table missing, continue
 			pass
 		else:
-			if users is None:
-				# No users, redirect to create first
+			if params['setup_complete'] == 0:
+				flash('Setup incomplete, create a user first')
 				return redirect(url_for('settings.first_run'))
 			
-			# Already users registered
 			flash('Database already exists. Log in as an admin user or manually delete the database file to proceed.')
 			return redirect(url_for('auth.login'))
 		

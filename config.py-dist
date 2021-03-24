@@ -1,7 +1,27 @@
 # Config for youtube-dl-web-viewer
+# Copy config.py-dist to config.py to use
 # Missing values will fall back to defaults from app/__init__.py
 
-# Database path: will be created on first run
-DATABASE='data.sqlite'
 # Secret key: set this to something random to protect your sessions
-SECRET_KEY='dev'
+SECRET_KEY = 'dev'
+
+#######################################################
+# You can generally ignore everything below this line
+#######################################################
+
+# Database path: will be created on first run
+DATABASE = 'data.sqlite'
+
+# Video extensions: scanner will look for videos with these extensions (MIME types are used for embedding)
+VIDEO_EXTENSIONS = {
+	'.mp4': 'video/mp4',
+	'.webm': 'video/webm',
+	'.mkv': 'video/webm',
+	'.flv': 'video/x-flv'
+	}
+
+# Thumbnail extensions: scanner will look for thumbnails with these extensions
+THUMBNAIL_EXTENSIONS=('.webp', '.avif', '.jpg', '.jpeg', '.png', '.gif')
+
+# Metadata extension: scanner will look for metadata files with this extension
+METADATA_EXTENSION='.info.json'

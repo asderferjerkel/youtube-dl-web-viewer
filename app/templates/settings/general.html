@@ -5,7 +5,7 @@
 	<h2>{{ title }}</h2>
 	
 	<div class="form">
-		<form method="POST" action="/settings/general">
+		<form method="POST" action="{{ url_for('settings.general') }}">
 			{{ form.csrf_token }}
 			{{ render_field(form.refresh_interval) }}
 			<div class="field_help">(set 0 to disable) Refresh the database if it is older than x seconds (can also use 10m, 12h, 3d, 1w etc for minutes/hours/days/weeks)</div>
@@ -19,7 +19,7 @@
 			<div class="field_help">(optional) See below for help</div>
 			{{ render_field(form.filename_delimiter) }}
 			<div class="field_help">(optional) Include spaces, see below for help</div>
-			{{ render_field(form.public_can_view) }}
+			{{ render_field(form.guests_can_view) }}
 			<div class="field_help">If checked, videos are publicly viewable. Does not protect video URLs or HTTP basic auth username/password. Guests cannot access settings or refresh/rescan the database.</div>
 			<input name="submit" type="submit" value="Update">
 		</form>
@@ -28,6 +28,7 @@
 	<div>
 		# refresh/rescan/clear buttons
 		# set both disabled on click until job completed (same on page load if task running)
+		# also do last updated date
 	</div>
 	
 	<h3>Help</h3>

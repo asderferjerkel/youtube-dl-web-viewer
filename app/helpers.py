@@ -1,4 +1,16 @@
 from flask import current_app, g, flash
+from flask_navigation import Navigation
+
+def init_app(app):
+	nav = Navigation()
+	nav.init_app(app)
+	
+	nav.Bar('top', [
+		nav.Item('Home', 'index.index'),
+		nav.Item('Settings', 'settings.general'),
+		nav.Item('Users', 'settings.user'),
+		nav.Item('Log', 'index.error_log')
+		])
 
 def check_conf():
 	"""Warn if development secret keys are being used"""

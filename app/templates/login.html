@@ -3,7 +3,7 @@
 
 {% block content %}
 	<h2>{{ title }}</h2>
-	<form method="POST" action="/login">
+	<form method="POST" action="{{ url_for('auth.login') }}">
 		{{ form.csrf_token }}
 		{{ render_field(form.username) }}
 		{{ render_field(form.password) }}

@@ -5,8 +5,9 @@ from flask import Blueprint, flash, g, redirect, render_template, request, sessi
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from flask_wtf import FlaskForm
-from wtforms import Form, StringField, PasswordField, BooleanField, IntegerField, HiddenField, FieldList, FormField, validators
+from wtforms import Form, StringField, PasswordField, BooleanField, IntegerField, HiddenField, FieldList, FormField, SubmitField, validators
 from wtforms.validators import ValidationError
+from wtforms.widgets import HiddenInput
 
 import sqlite3
 from app.db import get_db, get_params
@@ -14,15 +15,15 @@ from app.db import get_db, get_params
 blueprint = Blueprint('auth', __name__)
 
 # Form validation
-def validate_username(form, field):
+def username_available(form, field):
 	"""Forbids existing usernames"""
 	try:
-		if get_db().execute('SELECT id FROM users WHERE username = ?', field.data).fetchone() is not None:
+		if get_db().execute('SELECT id FROM users WHERE username = ?', (field.data, )).fetchone() is not None:
 			raise ValidationError('Username already in use')
 	except sqlite3.OperationalError:
 		raise ValidationError('Could not check username availability')
 
-def validate_username_update(form, field):
+def username_available_current(form, field):
 	"""Forbids existing usernames, ignoring current if unchanged"""
 	try:
 		if get_db().execute('SELECT id FROM users WHERE username = ? AND id != ?',
@@ -49,19 +50,22 @@ class LoginUser(FlaskForm):
 	password = PasswordField('Password', [validators.InputRequired()])
 
 class AddUser(FlaskForm):
-	username = StringField('Username', [validators.InputRequired(), validators.Length(min = 1, max = 255), validate_username])
+	username = StringField('Username', [validators.InputRequired(), validators.Length(min = 1, max = 255), username_available])
 	password = PasswordField('Password', [validators.Length(min = 6, max = 255)])
 	repeat = PasswordField('Repeat password', [validators.EqualTo('password', message = 'Passwords do not match')])
+	# Different submit button names so can use multiple forms on one page
+	add = SubmitField('Add user')
 
 class UpdateUser(FlaskForm):
 	current_password = PasswordField('Current password', [validators.Length(min = 6, max = 255)])
 	new_password = PasswordField('New password', [validators.Length(min = 6, max = 255)])
 	repeat = PasswordField('Repeat password', [validators.EqualTo('new_password', message = 'Passwords do not match.')])
+	update = SubmitField('Change password')
 
 class AdminUpdateUser(Form):
 	# Subform is Form rather than FlaskForm as CSRF field only needs including once in parent
-	user_id = IntegerField(widget=HiddenField())
-	username = StringField('Username', [validators.InputRequired(), validators.Length(min = 1, max = 255), validate_username_update])
+	user_id = IntegerField(widget=HiddenInput())
+	username = StringField('Username', [validators.InputRequired(), validators.Length(min = 1, max = 255), username_available_current])
 	password = PasswordField('Password', [validators.Optional(), validators.Length(min = 6, max = 255)])
 	# todo: set to BooleanSubField if necessary
 	is_admin = BooleanField('Admin', [protect_self])
@@ -70,6 +74,7 @@ class AdminUpdateUser(Form):
 
 class AdminUpdateUsers(FlaskForm):
 	users = FieldList(FormField(AdminUpdateUser))
+	update_many = SubmitField('Update users')
 
 class BooleanSubField(BooleanField):
 	"""
@@ -101,11 +106,8 @@ def update_user(id, username = None, password = None, is_admin = None, delete_us
 	db = get_db()
 	
 	if delete_user:
-		flash('Would be deleting user ' + str(username) + '(ID ' + str(id) + ')')
-		#try:
-			#db.execute('DELETE FROM users WHERE id = ?', id)
-		#
-		#db.commit()
+		db.execute('DELETE FROM users WHERE id = ?', (id, ))
+		db.commit()
 	
 	else:
 		if is_admin is not None:
@@ -129,7 +131,7 @@ def load_user():
 	
 	if user_id is not None:
 		try:
-			g.user = get_db().execute('SELECT id, username, is_admin FROM users WHERE id = ?', user_id).fetchone()
+			g.user = get_db().execute('SELECT id, username, is_admin FROM users WHERE id = ?', (user_id, )).fetchone()
 		except sqlite3.OperationalError:
 			# Don't store in case of DB failure
 			pass
@@ -140,7 +142,7 @@ def login():
 	
 	if g.user is not None:
 		flash('Already logged in')
-		return redirect(url_for('index'))
+		return redirect(url_for('index.index'))
 	
 	# If POST request and form is valid
 	if form.validate_on_submit():
@@ -148,19 +150,19 @@ def login():
 		password = form.password.data
 		
 		try:
-			user = get_db().execute('SELECT id, password FROM users WHERE username = ?', username).fetchone()
+			user = get_db().execute('SELECT id, password FROM users WHERE username = ?', (username, )).fetchone()
 		except sqlite3.OperationalError:
 			flash('Database not initialised')
 			return redirect(url_for('db.init'))
-		
-		if user is None or not check_password_hash(user['password'], password):
-			flash('Incorrect username/password')
-			return redirect(url_for('auth.login'))
+		else:
+			if user is None or not check_password_hash(user['password'], password):
+				flash('Incorrect username/password')
+				return redirect(url_for('auth.login'))
 
 		# Successful login
 		session.clear()
 		session['user_id'] = user['id']
-		return redirect(url_for('index'))
+		return redirect(url_for('index.index'))
 	
 	return render_template('login.html', title = 'Login', form = form)
 
@@ -196,7 +198,7 @@ def login_required(user_class = 'user', api = False):
 					return jsonify({'status': 'error',
 									'message': 'Unauthorised'}), 403
 				flash('Page is restricted to admin users.')
-				return redirect(url_for('index'))
+				return redirect(url_for('index.index'))
 			
 			# Not logged in
 			try:
@@ -207,6 +209,13 @@ def login_required(user_class = 'user', api = False):
 					return jsonify({'status': 'error',
 									'message': 'Database error'}), 500
 				return redirect(url_for('db.init'))
+			else:
+				if params['setup_complete'] == 0:
+					# First user not created yet, go to first run
+					if api:
+						return jsonify({'status': 'error',
+										'message': 'Setup incomplete'}), 500
+					return redirect(url_for('settings.first_run'))
 			
 			if user_class == 'guest' and params['guests_can_view']:
 				# Guests allowed

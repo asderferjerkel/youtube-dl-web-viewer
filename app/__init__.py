@@ -6,9 +6,18 @@ def create_app():
 	app = Flask(__name__)
 	
 	# Default config
+	# Copy config.py-dist to config.py to override
 	app.config.from_mapping(
-		SECRET_KEY='dev',
-		DATABASE='data.sqlite'
+		SECRET_KEY = 'dev',
+		DATABASE = 'data.sqlite',
+		VIDEO_EXTENSIONS = {
+			'.mp4': 'video/mp4',
+			'.webm': 'video/webm',
+			'.mkv': 'video/webm',
+			'.flv': 'video/x-flv'
+			}
+		THUMBNAIL_EXTENSIONS = ('.webp', '.avif', '.jpg', '.jpeg', '.png', '.gif')
+		METADATA_EXTENSION = '.info.json'
 	)
 	
 	# Get user config if it exists
@@ -22,16 +31,18 @@ def create_app():
 		datefmt = '%Y-%m-%d %H:%M:%S'
 	)
 	
+	# Register navigation
+	from . import helpers
+	helpers.init_app(app)
+	
 	# Register blueprints
 	# View functions must be imported in __init__.py as per https://flask.palletsprojects.com/en/1.1.x/patterns/packages/
 	
 	from . import db
 	# Register database functions
 	db.init_app(app)
-	
 	# Log to database if available
 	app.logger.addHandler(db.LogToDB())
-	
 	app.register_blueprint(db.blueprint)
 	
 	from . import index

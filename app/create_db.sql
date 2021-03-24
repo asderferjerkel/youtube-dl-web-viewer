@@ -21,10 +21,11 @@ CREATE TABLE videos (
 	position INTEGER,
 	playlist_index INTEGER,
 	video_id TEXT,
+	video_url TEXT,
 	title TEXT,
 	description TEXT,
 	upload_date TEXT,
-	modification_time TEXT,
+	modification_time NUMERIC,
 	uploader TEXT,
 	uploader_url TEXT,
 	duration INTEGER,
@@ -35,24 +36,28 @@ CREATE TABLE videos (
 	categories TEXT,
 	tags TEXT,
 	height INTEGER,
-	video_format TEXT,
 	vcodec TEXT,
+	video_format TEXT,
 	fps NUMERIC,
 	FOREIGN KEY (folder_id) REFERENCES folders (id)
 );
 
 CREATE TABLE params (
-	last_refreshed INTEGER NOT NULL,
+	setup_complete INTEGER NOT NULL,
+	last_refreshed NUMERIC NOT NULL,
 	refresh_interval INTEGER NOT NULL,
 	disk_path TEXT NOT NULL,
 	web_path TEXT NOT NULL,
+	web_path_username TEXT,
+	web_path_password TEXT,
 	metadata_source TEXT NOT NULL,
 	filename_format TEXT,
 	filename_delimiter TEXT,
 	guests_can_view INTEGER NOT NULL
 );
 
-INSERT INTO params (last_refreshed, refresh_interval, disk_path, web_path, metadata_source, filename_format, filename_delimiter, guests_can_view) VALUES (
+INSERT INTO params (setup_complete, last_refreshed, refresh_interval, disk_path, web_path, metadata_source, filename_format, filename_delimiter, guests_can_view) VALUES (
+	'0',
 	'0',
 	'86400',
 	'/home/user/videos/',

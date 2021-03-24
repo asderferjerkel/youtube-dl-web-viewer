@@ -11,3 +11,15 @@
 		{% endif %}
 	</div>
 {% endmacro %}
+
+{% macro error_list(form) %}
+	{% if form.errors %}
+		<ul class="errors">
+			{% for field, errors in form.errors|dictsort if errors %}
+				{% for error in errors %}
+					<li>{{ form[field].label }}: {{ error }}</li>
+				{% endfor %}
+			{% endfor %}
+		</ul>
+	{% endif %}
+{% endmacro %}
