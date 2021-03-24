@@ -1,6 +1,6 @@
 import functools
 
-from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, g, current_app, flash, redirect, render_template, request, session, url_for
 
 from flask_wtf import FlaskForm
 from wtforms import SubmitField
@@ -24,6 +24,7 @@ def index():
 	# feed w/ folder list
 	# set some var if guest so JS doesn't call /api/status at all
 	# many dangers: https://semgrep.dev/docs/cheat-sheets/flask-xss/ https://flask.palletsprojects.com/en/1.1.x/security/
+	current_app.logger.critical('test1')
 	return render_template('index.html')
 
 @blueprint.route('/log', methods=('GET', 'POST'))

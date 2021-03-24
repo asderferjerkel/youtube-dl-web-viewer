@@ -58,7 +58,10 @@ def create_db_command():
 		click.echo('Database created.')
 
 class LogToDB(logging.Handler):
-	"""Custom handler to log to the database"""
+	"""
+	Custom handler to log to the database
+	Since we use an app factory, use current_app.logger.info('asdf') instead of logging.info('asdf')
+	"""
 	def __init__(self):
 		logging.Handler.__init__(self)
 	

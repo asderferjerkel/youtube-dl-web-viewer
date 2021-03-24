@@ -15,8 +15,8 @@ def create_app():
 			'.webm': 'video/webm',
 			'.mkv': 'video/webm',
 			'.flv': 'video/x-flv'
-			}
-		THUMBNAIL_EXTENSIONS = ('.webp', '.avif', '.jpg', '.jpeg', '.png', '.gif')
+			},
+		THUMBNAIL_EXTENSIONS = ('.webp', '.avif', '.jpg', '.jpeg', '.png', '.gif'),
 		METADATA_EXTENSION = '.info.json'
 	)
 	
@@ -42,6 +42,7 @@ def create_app():
 	# Register database functions
 	db.init_app(app)
 	# Log to database if available
+	db.LogToDB().setLevel(logging.INFO)
 	app.logger.addHandler(db.LogToDB())
 	app.register_blueprint(db.blueprint)
 	
@@ -53,5 +54,10 @@ def create_app():
 	
 	from . import settings
 	app.register_blueprint(settings.blueprint)
+	
+	from . import api
+	app.register_blueprint(api.blueprint)
+	# Reset task on server restart
+	api.init_app(app)
 	
 	return app
