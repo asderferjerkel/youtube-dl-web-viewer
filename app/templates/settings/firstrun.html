@@ -2,16 +2,19 @@
 {% from 'macros.html' import render_field %}
 
 {% block content %}
-	<h2>{{ title }}</h2>
-	<p>Create a user to protect your settings and maintenance tasks. You can add more users later.</p>
-	
-	<div class="form">
-		<form method="POST" action="{{ url_for('settings.first_run') }}">
-			{{ form.csrf_token }}
-			{{ render_field(form.username) }}
-			{{ render_field(form.password) }}
-			{{ render_field(form.repeat) }}
-			<input name="submit" type="submit" value="Create account">
-		</form>
+	<div class="full-width">
+		<h2>{{ title }}</h2>
+		
+		<p>Create a user to protect your settings and maintenance tasks. You can add more users later.</p>
+		
+		<div class="form">
+			<form method="POST" action="{{ url_for('settings.first_run') }}">
+				{{ form.csrf_token }}
+				{{ render_field(form.username) }}
+				{{ render_field(form.password) }}
+				{{ render_field(form.repeat) }}
+				<input name="submit" type="submit" value="Create account">
+			</form>
+		</div>
 	</div>
 {% endblock %}

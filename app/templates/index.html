@@ -1,4 +1,39 @@
 {% extends 'base.html' %}
 
 {% block content %}
+	<section class="main">
+		<div class="player">
+		</div>
+		
+		<div class="info">
+		</div>
+	</section>
+	
+	<section class="sidebar">
+		<div id="playlists" class="list">
+			<ul>
+			{% if playlists %}
+				{% for playlist in playlists %}
+					<li class="list-item">
+						<a data-playlist="{{ playlist.id }}">
+							<div class="id">{{ playlist.id }}</div>
+							<div class="name">{{ playlist.folder_name }}</div>
+							<div class="count">{{ playlist.video_count }}</div>
+						</a>
+					</li>
+				{% endfor %}
+			{% endif %}
+			</ul>
+		</div>
+
+		<div id="videos" class="list">
+			<ul></ul>
+		</div>
+	</section>
+
+	<script>
+		var api_available = {{ 'true' if api_available else 'false' }};
+		var last_refreshed = "{{ last_refreshed }}";
+	</script>
+	<script src="{{ url_for('static', filename = 'video.js') }}"></script>
 {% endblock %}

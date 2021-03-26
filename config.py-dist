@@ -21,7 +21,10 @@ VIDEO_EXTENSIONS = {
 	}
 
 # Thumbnail extensions: scanner will look for thumbnails with these extensions
-THUMBNAIL_EXTENSIONS=('.webp', '.avif', '.jpg', '.jpeg', '.png', '.gif')
+THUMBNAIL_EXTENSIONS = ('.webp', '.avif', '.jpg', '.jpeg', '.png', '.gif')
 
 # Metadata extension: scanner will look for metadata files with this extension
-METADATA_EXTENSION='.info.json'
+METADATA_EXTENSION = '.info.json'
+
+# Log level: will log events this level or higher to the database (logging.NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL)
+DATABASE_LOG_LEVEL = logging.DEBUG

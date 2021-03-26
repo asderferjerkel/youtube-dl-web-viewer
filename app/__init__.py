@@ -1,6 +1,8 @@
-from flask import Flask
 import logging
 import sys
+
+from flask import Flask
+from flask_wtf.csrf import CSRFProtect
 
 def create_app():
 	app = Flask(__name__)
@@ -17,7 +19,8 @@ def create_app():
 			'.flv': 'video/x-flv'
 			},
 		THUMBNAIL_EXTENSIONS = ('.webp', '.avif', '.jpg', '.jpeg', '.png', '.gif'),
-		METADATA_EXTENSION = '.info.json'
+		METADATA_EXTENSION = '.info.json',
+		DATABASE_LOG_LEVEL = logging.DEBUG
 	)
 	
 	# Get user config if it exists
@@ -31,6 +34,10 @@ def create_app():
 		datefmt = '%Y-%m-%d %H:%M:%S'
 	)
 	
+	# CSRF protection
+	csrf = CSRFProtect()
+	csrf.init_app(app)
+	
 	# Register navigation
 	from . import helpers
 	helpers.init_app(app)
@@ -42,7 +49,7 @@ def create_app():
 	# Register database functions
 	db.init_app(app)
 	# Log to database if available
-	db.LogToDB().setLevel(logging.INFO)
+	db.LogToDB().setLevel(app.config['DATABASE_LOG_LEVEL'])
 	app.logger.addHandler(db.LogToDB())
 	app.register_blueprint(db.blueprint)
 	
@@ -59,5 +66,5 @@ def create_app():
 	app.register_blueprint(api.blueprint)
 	# Reset task on server restart
 	api.init_app(app)
-	
+		
 	return app

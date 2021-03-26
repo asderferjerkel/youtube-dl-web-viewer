@@ -5,16 +5,20 @@ import threading
 
 from collections import OrderedDict
 from itertools import islice
+import datetime
 from datetime import datetime, timezone
 
 from pathlib import Path
-from urllib.request import pathname2url
+import html
 import re
 
 from flask import Blueprint, g, current_app, request, session, jsonify
+from flask_wtf import csrf
+from wtforms.validators import ValidationError
 
 from app.db import get_db, get_params
 from app.auth import login_required
+from app.helpers import format_duration
 
 # one function for refresh/rescan, specify task = rescan (default refresh)
 # if refresh, on check filename, match to db and skip (for each folder get filename list from db?)
@@ -35,6 +39,18 @@ def init_app(app):
 	"""Reset running task on server restart"""
 	with app.app_context():
 		set_task(status = 0)
+
+def csrf_protect(view):
+	@functools.wraps(view)
+	def wrapped_view(*args, **kwargs):
+		try:
+			csrf.validate_csrf(request.headers.get('X-CSRFToken'))
+		except ValidationError:
+			return jsonify({'result': 'error',
+							'message': 'CSRF error'}), 400
+		
+		return view(*args, **kwargs)
+	return wrapped_view
 
 def get_task():
 	"""
@@ -60,8 +76,12 @@ def set_task(status = 0, folder = None, of_folders = None, file = None, of_files
 	db.commit()
 
 def refresh_db(rescan = False):
-	# Check for running task
+	"""
+	Scan for new videos in a separate thread and add them to the database.
+	Specify rescan = True to clear existing data and rescan all videos
+	"""
 	try:
+		# Check for running task
 		if get_task()['status'] == 1:
 			raise BlockingIOError('Refresh: A task is already running')
 	except sqlite3.OperationalError as e:
@@ -70,7 +90,6 @@ def refresh_db(rescan = False):
 	def run_refresh_db(rescan):
 		app = current_app._get_current_object()
 		with app.app_context():
-			app.logger.info(rescan)
 			db = get_db()
 			
 			try:
@@ -79,6 +98,7 @@ def refresh_db(rescan = False):
 				raise sqlite3.OperationalError('Refresh: Could not get settings') from e
 			
 			if rescan:
+				app.logger.debug('Full rescan, clearing tables')
 				# Clear tables first
 				try:
 					db.execute('DELETE FROM videos')
@@ -102,11 +122,13 @@ def refresh_db(rescan = False):
 			if params['filename_format'] and params['filename_delimiter']:
 				filename_format = re.findall(r'\{\w+\}', params['filename_format'])
 				if len(filename_format) > 0:
+					app.logger.debug('Will try to parse filenames for metadata')
 					filename_parsing = True
 					
 					title_position = None
 					# Is {title} present?
 					if '{title}' in filename_format:
+						app.logger.debug('{title} present in format, will split both sides')
 						# Yes, slice format on either side to later split from left and right
 						title_position = filename_format.index('{title}')
 						
@@ -115,6 +137,7 @@ def refresh_db(rescan = False):
 			
 			db_folders = None
 			if not rescan:
+				app.logger.debug('Refresh only')
 				try:
 					db_folders = list_folders()
 				except sqlite3.OperationalError as e:
@@ -144,12 +167,11 @@ def refresh_db(rescan = False):
 			
 			# Scan each folder for video files
 			for folder_index, folder in enumerate(disk_folders, start = 1):
+				app.logger.debug('Scanning folder #' + str(folder_index) + ': "' + str(folder) + '"')
 				try:
 					set_task(status = 1, folder = folder_index, of_folders = folder_count, message = 'Scanning folder')
 				except sqlite3.OperationalError:
 					app.logger.warning('Refresh: Could not update task status')
-				
-				folder_id = db_folders[str(folder)]
 				
 				files = []
 				thumbnails = []
@@ -157,7 +179,7 @@ def refresh_db(rescan = False):
 				for file in folder.glob('*'):
 					# Scan for videos
 					if file.suffix in app.config['VIDEO_EXTENSIONS'].keys():
-						files.add(file)
+						files.append(file)
 					# Scan for images as potential thumbnails
 					if file.suffix in app.config['THUMBNAIL_EXTENSIONS']:
 						thumbnails.add(file)
@@ -169,9 +191,13 @@ def refresh_db(rescan = False):
 				
 				# If we found video files
 				if len(files) > 0:
-					# Check if the folder exists in the database
-					if not rescan and str(folder) in db_folders:
-						# Folder exists, get previously-scanned videos from database by folder id
+					app.logger.debug('Found ' + str(len(files)) + ' files')
+					# Check if the folder exists in the database, if the database has folders
+					# DB stores folder paths relative to basepath so use that to compare
+					folder_relative = folder.relative_to(basepath)
+					if not rescan and db_folders and str(folder_relative) in db_folders:
+						folder_id = db_folders[str(folder_relative)]
+						# Folder exists, get previously-scanned videos from database by folder ID
 						try:
 							db_files = list_videos(folder_id)
 						except sqlite3.OperationalError as e:
@@ -186,13 +212,13 @@ def refresh_db(rescan = False):
 						db_files = [file['filename'] for file in db_files]
 						
 						# Remove previously-scanned videos from file list
-						for file in files:
-							if str(file) in db_files:
-								files.remove(file)
+						# DB stores filename alone so remove path to compare
+						files[:] = [file for file in files if file.name not in db_files]
 						
 						new_video_count = len(files)
+						app.logger.debug('Folder previously seen, ' + str(new_video_count) + ' new files')
 						
-						# Update database with new video count
+						# Add new videos to existing folder count
 						video_count = len(db_files) + new_video_count
 						try:
 							update_folder(folder_id, video_count)
@@ -201,42 +227,35 @@ def refresh_db(rescan = False):
 							app.logger.warning('Refresh: Could not update video count for folder "' + str(folder) + '"')
 								
 					else:
+						app.logger.debug('Adding new folder to database')
 						# Folder does not exist or starting from scratch, add to database
-						folder_name = folder.name.replace('_', ' ')
-						folder_name = 'Root folder' if folder_name == '' else folder_name
-						
-						folder_path = str(folder)
-						# Add trailing / if necessary
-						#if folder_path[-1] != '/':
-						#	folder_path = folder_path + '/'
-						
-						# Convert \\ to / and escape to form URL
-						web_path = pathname2url(folder.as_posix())
-						# Add trailing / if necessary
-						if web_path[-1] != '/' and web_path != '':
-							web_path = web_path + '/'
-						
+						if not folder.parts: # Path('.').parts == ()
+							folder_name = 'Root folder'
+						else:
+							folder_name = folder.name
+							if params['replace_underscores']:
+								folder_name = folder_name.replace(' _ ', ' - ').replace('_', '')
+						# Store path as relative to basepath
+						folder_path = str(folder_relative)
+						# All videos are unseen
 						new_video_count = len(files)
 						
 						try:
-							add_folder(folder_name, folder_path, web_path, new_video_count)
+							folder_id = add_folder(folder_name, str(folder_relative), new_video_count)
 						except sqlite3.OperationalError:
 							with_warnings = True
 							app.logger.warning('Refresh: Could not add new folder "' + folder_path + '" to database, skipping')
 							# Skip to next folder
 							continue
 					
-					# set task folder x of <nochange>
-					# set task video 0 of x
+					# Update task with total folder and new video count
 					try:
 						set_task(status = 1, folder = folder_index, of_folders = folder_count, file = 0, of_files = new_video_count, message = 'Scanning for new videos')
 					except sqlite3.OperationalError:
 						with_warnings = True
 						app.logger.warning('Refresh: Could not update task status')
 					
-					# now we have folder and files (list) to iterate through
-			
-					# for each video in file list
+					# Iterate through the subfolder's files
 					for file_index, file in enumerate(files, start = 1):
 						if file_index % 10 == 0:
 							# Update task every 10 files
@@ -247,11 +266,16 @@ def refresh_db(rescan = False):
 								app.logger.warning('Refresh: Could not update task status')
 						
 						video = {}
+						# Existing or new folder ID
+						video['folder_id'] = folder_id
 						
 						# Default to basic metadata
 						video['filename'] = file.name
-						# Title defaults to filename without extension (replacing underscores)
-						video['title'] = file.stem.replace('_', ' ')
+						# Title defaults to filename without extension
+						video['title'] = file.stem
+						# Optionally replace " _ " with " - " (assuming unsafe character was used as separator) then remove remaining underscores
+						if params['replace_underscores']:
+							video['title'] = video['title'].replace(' _ ', ' - ').replace('_', '')
 						# MIME type defaults to extension mapping from config
 						video['video_format'] = None
 						try:
@@ -259,35 +283,43 @@ def refresh_db(rescan = False):
 						except KeyError:
 							with_warnings = True
 							app.logger.warning('Refresh: Did not recognise extension "' + file.suffix + '", add with its MIME type to config.py')
-						# Modification time defaults to file modification time
-						video['modification_time'] = file.stat().st_mtime
+						# Modification time from file (local time)
+						video['modification_time'] = datetime.fromtimestamp(file.stat().st_mtime)
 						
 						# Match thumbnail
 						video['thumbnail'] = None
 						for thumb in thumbnails:
-							# Filenames without extensions should match
+							# Both absolute paths but filenames without extensions should match
 							if file.stem in thumb.stem:
-								video['thumbnail'] = thumb
+								app.logger.debug('Video #' + str(file_index) + 'matched thumbnail ' + str(thumb.name))
+								# Store filename without path
+								video['thumbnail'] = thumb.name
 						# Match metadata
 						metadata = None
 						for meta in metadatas:
-							# Path.stem only removes final extension and Path.suffixes cannot be limited to 2, so split once from right on full extension instead
+							# Path.stem only removes final extension and Path.suffixes cannot be limited to 2 (ie. .info.json), so split once from right on full extension instead
 							if file.stem in meta.name.rsplit(app.config['METADATA_EXTENSION'], 1)[0]:
+								app.logger.debug('Video #' + str(file_index) + 'matched metadata ' + str(meta.name))
+								# Store absolute path to read later
 								metadata = meta
 						
-						# Rest default to None
+						# Rest of metadata defaults to None
 						video.update(dict.fromkeys(['position', 'playlist_index', 'id', 'webpage_url', 'description', 'upload_date', 'uploader', 'uploader_url', 'duration', 'view_count', 'like_count', 'dislike_count', 'average_rating', 'categories', 'tags', 'height', 'vcodec', 'fps'], None))
 						
-						# Try to parse filename format
+						# Parse filename format if format & delimiter params are present
 						if filename_parsing:
-							# Filename format & delimiter params are present
+							# dict replaces duplicates but this doesn't affect the param count e.g. if multiple {skip} are present
 							filename_metadata = {}
-							if title_position:
+							if title_position is not None: # (can be 0)
 								# {title} present: since it may contain the delimiter, we split out the rest of the variables and keep what remains as the title
-								# Split from left, keep count of vars from before_title
+								# Split filename without extension from left, keep # of vars from before_title
 								left_split = file.stem.split(params['filename_delimiter'])[:len(before_title)]
-								# Split from right, keep count of vars from after_title
-								right_split = file.stem.rsplit(params['filename_delimiter'])[-len(after_title):]
+								# Split from right, keep # of vars from after_title
+								if len(filename_format) == 1:
+									# If format only contains {title}, skip the right split as [-0:] would return the entire list
+									right_split = []
+								else:
+									right_split = file.stem.rsplit(params['filename_delimiter'])[-len(after_title):]
 								
 								if len(before_title) == len(left_split):
 									for index, var in enumerate(before_title):
@@ -298,20 +330,20 @@ def refresh_db(rescan = False):
 										for index, var in enumerate(after_title):
 											filename_metadata[var] = right_split[index]
 										
-										# Only split title if successfully split both
+										# Finally split title
 										# Split off everything left of title and keep the remainder
 										title_split = file.stem.split(params['filename_delimiter'], len(before_title))[-1]
 										# Split off everything right of title and keep the remainder
 										title_split = title_split.rsplit(params['filename_delimiter'], len(after_title))[0]
-										# Remove underscores
-										video['title'] = title_split.replace('_', ' ')
+										filename_metadata['{title}'] = title_split
 										
 									else:
 										with_warnings = True
-										app.logger.warning('Refresh: Filename format does not match filename (right of {title} expected ' + str(len(after_title)) + ' variable(s), got ' + str(len(right_split)))
+										app.logger.warning('Refresh: Filename format does not match filename: right of {title} expected ' + str(len(after_title)) + ' variable(s), got ' + str(len(right_split)))
 								else:
 									with_warnings = True
-									app.logger.warning('Refresh: Filename format does not match filename (left of {title} expected ' + str(len(before_title)) + ' variable(s), got ' + str(len(left_split)))
+									app.logger.warning('Refresh: Filename format does not match filename: left of {title} expected ' + str(len(before_title)) + ' variable(s), got ' + str(len(left_split)))
+							
 							else:
 								# {title} not present: simple split
 								left_split = file.stem.split(params['filename_delimiter'])
@@ -322,30 +354,40 @@ def refresh_db(rescan = False):
 								
 								else:
 									with_warnings = True
-									app.logger.warning('Refresh: Filename format does not match filename ( expected ' + str(len(filename_format)) + ' variable(s), got ' + str(len(left_split)))
+									app.logger.warning('Refresh: Filename format does not match filename: expected ' + str(len(filename_format)) + ' variable(s), got ' + str(len(left_split)))
 								
-								# Match and validate remainder of metadata
-								for key, value in filename_metadata.items():
-									if key == '{position}':
-										try:
-											video['position'] = int(value)
-										except ValueError:
-											with_warnings = True
-											app.logger.warning('Refresh: Filename variable {position} is not an integer: "' + str(value) + '"')
-									
-									if key == '{id}':
-										try:
-											video['id'] = str(value)
-										except ValueError:
-											with_warnings = True
-											app.logger.warning('Refresh: Filename variable {id} is not a string')
-									
-									if key == '{date}':
-										if re.fullmatch(r'\d{8}', value):
-											video['upload_date'] = str(value)
-										else:
-											with_warnings = True
-											app.logger.warning('Refresh: Filename variable {date} is not in YYYYMMDD format: "' + str(value) + '"')
+							# Match and validate remainder of metadata
+							# Won't run on an empty list if parsing failed with/without title
+							for key, value in filename_metadata.items():
+								if key == '{title}':
+									video['title'] = str(value)
+									# Optionally replace " _ " with " - " (assuming unsafe character was used as separator) then remove remaining underscores
+									if params['replace_underscores']:
+										video['title'] = video['title'].replace(' _ ', ' - ').replace('_', '')
+								
+								if key == '{position}':
+									try:
+										video['position'] = int(value)
+									except ValueError:
+										with_warnings = True
+										app.logger.warning('Refresh: Filename variable {position} is not an integer: "' + str(value) + '"')
+								
+								if key == '{id}':
+									try:
+										video['id'] = str(value)
+									except ValueError:
+										with_warnings = True
+										app.logger.warning('Refresh: Filename variable {id} is not a string')
+								
+								if key == '{date}':
+									try:
+										video['upload_date'] = datetime.strptime(str(value), '%Y%m%d')
+									#if re.fullmatch(r'\d{8}', str(value)):
+									#	video['upload_date'] = str(value)
+									#else:
+									except ValueError:
+										with_warnings = True
+										app.logger.warning('Refresh: Filename variable {date} is not in YYYYMMDD format: "' + str(value) + '"')
 						
 						# Try to parse .info.json
 						if metadata:
@@ -359,7 +401,7 @@ def refresh_db(rescan = False):
 							else:
 								# Replace fallbacks with json keys, if they exist
 								# Validate ints
-								for key in (playlist_index, duration, view_count, like_count, dislike_count, height):
+								for key in ('playlist_index', 'duration', 'view_count', 'like_count', 'dislike_count', 'height'):
 									try:
 										video[key] = int(mj.get(key)) if mj.get(key) else video[key]
 									except ValueError:
@@ -367,7 +409,7 @@ def refresh_db(rescan = False):
 										app.logger.warning('Refresh: Metadata field "' + str(key) + '" is not an integer: "' + str(mj.get(key)) + '"')
 								
 								# Validate floats
-								for key in (average_rating, fps):
+								for key in ('average_rating', 'fps'):
 									try:
 										video[key] = float(mj.get(key)) if mj.get(key) else video[key]
 									except ValueError:
@@ -375,15 +417,11 @@ def refresh_db(rescan = False):
 										app.logger.warning('Refresh: Metadata field "' + str(key) + '" is not numeric: "' + str(mj.get(key)) + '"')
 								
 								# Validate strings
-								for key in (id, webpage_url, title, description, uploader, uploader_url, vcodec):
-									try:
-										video[key] = str(mj.get(key)) if mj.get(key) else video[key]
-									except ValueError:
-										with_warnings = True
-										app.logger.warning('Refresh: Metadata field "' + str(key) + '" is not a string')
+								for key in ('id', 'webpage_url', 'title', 'description', 'uploader', 'uploader_url', 'vcodec'):
+									video[key] = str(mj.get(key)) if mj.get(key) else video[key]
 								
 								# Validate lists
-								for key in (categories, tags):
+								for key in ('categories', 'tags'):
 									try:
 										video[key] = json.dumps(mj.get(key)) if mj.get(key) else video[key]
 									except TypeError:
@@ -392,36 +430,39 @@ def refresh_db(rescan = False):
 								
 								# Validate weirdos
 								# re.fullmatch() raises exception if not string so check exists and coerce first
-								if mj.get('upload_date'):
-									try:
-										upload_date = str(mj.get('upload_date')) if re.fullmatch(r'\d{8}', str(mj.get('upload_date'))) else upload_date
-									except ValueError:
-										with_warnings = True
-										app.logger.warning('Refresh: Metadata field "upload_date" is not in YYYYMMDD format: "' + str(mj.get('upload_date')) + '"')
+								#if mj.get('upload_date'):
+								try:
+									#upload_date = str(mj.get('upload_date')) if re.fullmatch(r'\d{8}', str(mj.get('upload_date'))) else upload_date
+									video['upload_date'] = datetime.strptime(str(mj.get('upload_date')), '%Y%m%d') if mj.get('upload_date') else video['upload_date']
+								except ValueError:
+									with_warnings = True
+									app.logger.warning('Refresh: Metadata field "upload_date" is not in YYYYMMDD format: "' + str(mj.get('upload_date')) + '"')
 								
 								# Map extension to MIME type from config
 								if mj.get('ext'):
 									try:
-										video_format = app.config['VIDEO_EXTENSIONS']['.' + mj.get('ext')]
+										video['video_format'] = app.config['VIDEO_EXTENSIONS']['.' + mj.get('ext')]
 									except KeyError:
 										with_warnings = True
 										app.logger.warning('Refresh: Metadata field "extension" unrecognised: ".' + str(mj.get('ext')) + '" (add with its MIME type to config.py)')
 						
 						# Add to database
+						app.logger.debug('Adding video #' + str(file_index) + ': "' + str(video['title']) + '"')
 						try:
 							add_video(video)
-						except sqlite3.OperationalError:
+						except sqlite3.OperationalError as e:
 							with_warnings = True
-							app.logger.warning('Refresh: Could not add video "' + filename + '" to the database')
+							app.logger.warning('Refresh: Could not add video "' + video['filename'] + '" to the database: ' + str(e))
 			
 			# Update last_refreshed (milliseconds since epoch in UTC)
 			try:
-				db.execute('UPDATE params SET last_refreshed = ?', datetime.now().replace(tzinfo=timezone.utc).timestamp())
+				db.execute('UPDATE params SET last_refreshed = ?', (datetime.now().replace(tzinfo=timezone.utc).timestamp(), ))
 			except sqlite3.OperationalError:
 				app.logger.error('Refresh: Could not set last updated time')
 			finally:
 				# Task complete
 				message = 'Scan completed with warnings' if with_warnings else 'Scan complete'
+				app.logger.debug(message)
 				try:
 					set_task(status = 0, message = message)
 				except sqlite3.OperationalError:
@@ -429,24 +470,34 @@ def refresh_db(rescan = False):
 	
 	threading.Thread(target = run_refresh_db(rescan)).start()
 
-def add_folder(folder_name, folder_path, web_path, video_count):
+def add_folder(folder_name, folder_path, video_count):
+	"""
+	Add a new folder to the database.
+	folder_path is relative to params['disk_path']
+	"""
 	db = get_db()
-	db.execute('INSERT INTO folders (folder_name, folder_path, web_path, video_count) VALUES (?, ?, ?, ?)', (
+	db.execute('INSERT INTO folders (folder_name, folder_path, video_count) VALUES (?, ?, ?)', (
 		folder_name,
 		folder_path,
-		web_path,
 		video_count
 		))
+	id = db.execute('SELECT last_insert_rowid() FROM folders').fetchone()[0]
 	db.commit()
+	return id
 
 def update_folder(id, video_count):
+	"""Update the number of videos in a folder by its ID"""
 	db = get_db()
 	db.execute('UPDATE folders SET video_count = ? WHERE id = ?', (video_count, id))
 	db.commit()
 
 def add_video(video):
+	"""
+	Add a video to the database.
+	Supply a dict of parameters, all but folder_id and filename can be None
+	"""
 	db = get_db()
-	db.execute('INSERT INTO videos (folder_id, filename, thumbnail, position, playlist_index, video_id, video_url, title, description, upload_date, modification_time, uploader, uploader_url, duration, view_count, like_count, dislike_count, average_rating, categories, tags, height, vcodec, video_format, fps) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (
+	db.execute('INSERT INTO videos (folder_id, filename, thumbnail, position, playlist_index, video_id, video_url, title, description, upload_date, modification_time, uploader, uploader_url, duration, view_count, like_count, dislike_count, average_rating, categories, tags, height, vcodec, video_format, fps) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (
 		video['folder_id'],
 		video['filename'],
 		video['thumbnail'],
@@ -475,11 +526,13 @@ def add_video(video):
 	db.commit()
 
 def list_folders():
+	"""Returns a list of folders with their ID, name, path and video count"""
 	return get_db().execute('SELECT * FROM folders').fetchall()
 
 def list_videos(folder_id):
+	"""Returns a list of videos by folder ID"""
 	# todo: limit # returned from params?
-	# returns position + playlist_index so can choose how to sort (show choice if both not null)
+	# returns position + playlist_index + modtime so can choose how to sort (show choice if both not null)
 	# todo: add sort_by = default (= playlist_index desc) arg to func
 	# returns filename so refresh can remove existing from files to check
 	try:
@@ -487,46 +540,27 @@ def list_videos(folder_id):
 	except TypeError as e:
 		raise TypeError('folder_id not an integer') from e
 	
-	return get_db().execute('SELECT id, title, thumbnail, duration, position, playlist_index, filename FROM videos WHERE folder_id = ?', (folder_id, )).fetchall()
+	return get_db().execute('SELECT id, title, thumbnail, duration, position, playlist_index, strftime("%d/%m/%Y %H:%M", modification_time) AS modification_time, filename FROM videos WHERE folder_id = ?', (folder_id, )).fetchall()
 
 def get_video(id):
+	"""Return a single video"""
 	try:
 		id = int(id)
 	except TypeError as e:
 		raise TypeError('id not an integer') from e
 	
-	return get_db().execute('SELECT videos.*, folders.web_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE videos.id = ?', (id, )).fetchone()
+	return get_db().execute('SELECT videos.id, videos.filename, videos.thumbnail, videos.video_id, videos.video_url, videos.title, videos.description, strftime("%d/%m/%Y", videos.upload_date) AS upload_date, strftime("%d/%m/%Y %H:%M", videos.modification_time) AS modification_time, videos.uploader, videos.uploader_url, videos.duration, videos.view_count, videos.like_count, videos.dislike_count, videos.average_rating, videos.categories, videos.tags, videos.height, videos.vcodec, videos.video_format, videos.fps, folders.folder_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE videos.id = ?', (id, )).fetchone()
 
 @blueprint.route('/refresh')
 @login_required('user', api = True)
 def refresh():
 	"""Scan only new files for videos"""
-	"""
-	# Check for running task
 	try:
-		status = get_task()['status']
-	except sqlite3.OperationalError as e:
-		return jsonify({'result': 'error',
-						'message': 'Could not check for running tasks'})
-	else:
-		if status == 1:
-			return jsonify({'result': 'error',
-							'message': 'A task is already running'})
-		
-		try:
-			threading.Thread(target = run_refresh_db()).start()
-		except (BlockingIOError, sqlite3.OperationalError, FileNotFoundError) as e: # also add thread error
-			return jsonify({'result': 'error',
-							'message': str(e)})
-		
-		return jsonify({'result': 'ok'})
-	"""
-	
-	try:
-		refresh_db(rescan = True)
+		refresh_db()
 	except (BlockingIOError, sqlite3.OperationalError) as e: # also add thread error
+		current_app.logger.error('Failed to start refresh: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': str(e)})
+						'message': str(e)}), 500
 	
 	return jsonify({'result': 'ok'})
 
@@ -537,20 +571,23 @@ def rescan():
 	try:
 		refresh_db(rescan = True)
 	except (BlockingIOError, sqlite3.OperationalError) as e: # also add thread error
+		current_app.logger.error('Failed to start rescan: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': str(e)})
+						'message': str(e)}), 500
 
 	return jsonify({'result': 'ok'})
 
 @blueprint.route('/status')
 @login_required('user', api = True)
+@csrf_protect
 def status():
 	"""Check the status of the currently-running task"""
 	try:
 		task = get_task()
-	except sqlite3.OperationalError:
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to get status: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to get status'})
+						'message': 'Failed to get status'}), 500
 	
 	# Convert sqlite3.Row object to dict for json
 	task = {key: task[key] for key in task.keys()}
@@ -567,20 +604,28 @@ def dismiss():
 	"""
 	try:
 		set_task(status = 0)
-	except sqlite3.OperationalError:
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to dismiss error: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to clear error'})
+						'message': 'Failed to dismiss error'}), 500
 	
 	return jsonify({'result': 'ok'})
 
 @blueprint.route('/playlists')
 @login_required('guest', api = True)
 def playlists():
+	"""List playlist IDs, names and video counts"""
 	try:
 		folders = list_folders()
-	except sqlite3.OperationalError:
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to list playlists: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to list playlists'})
+						'message': 'Failed to list playlists'}), 500
+	
+	if len(folders) == 0:
+		current_app.logger.info('No playlists in database')
+		return jsonify({'result': 'error',
+						'message': 'No playlists'}), 404
 	
 	# Convert list of sqlite3.Row objects to list of dicts for json, removing disk paths
 	folders = [{key: row[key] for key in row.keys() if key != 'folder_path'} for row in folders]
@@ -591,18 +636,34 @@ def playlists():
 @blueprint.route('/playlist/<int:folder_id>')
 @login_required('guest', api = True)
 def playlist(folder_id):
+	"""List videos in a playlist"""
 	try:
 		# todo: add sort
 		videos = list_videos(folder_id)
-	except sqlite3.OperationalError:
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to get playlist: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to list videos'})
+						'message': 'Failed to list videos'}), 500
 	except TypeError as e:
+		current_app.logger.info('Failed to get playlist: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': str(e)})
+						'message': 'Playlist does not exist'}), 404
+	
+	if len(videos) == 0:
+		current_app.logger.info('No playlist returned')
+		return jsonify({'result': 'error',
+						'message': 'Playlist does not exist'}), 404
 	
 	# Convert list of sqlite3.Row objects to list of dicts for json, removing filenames
-	videos = [{key: row[key] for key in row.keys() if key != 'status'} for row in videos]
+	videos = [{key: row[key] for key in row.keys() if key != 'filename'} for row in videos]
+	
+	# Format duration
+	for video in videos:
+		video.update((key, format_duration(value)) for key, value in video.items() if key == 'duration' and value is not None)
+	
+	# Todo: default sort if not provided, return available sorts if position/playlist_index/modification_time (in order) in videos[0] if len(videos) > 0, accept sort param
+	# Can then remove sort keys here (or just return them as extra from list_videos)
+	# Todo: start_at, max_results (maybe from params)
 	
 	return jsonify({'result': 'ok',
 					'data': videos})
@@ -610,19 +671,52 @@ def playlist(folder_id):
 @blueprint.route('/video/<int:video_id>')
 @login_required('guest', api = True)
 def video(video_id):
+	"""Get a single video with its web path and metadata"""
 	try:
-		video = get_video(id)
-	except sqlite3.OperationalError:
+		params = get_params()
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to get params: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to get video'})
+						'message': 'Failed to get params'})
+	
+	try:
+		video = get_video(video_id)
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to get video: ' + str(e))
+		return jsonify({'result': 'error',
+						'message': 'Failed to get video'}), 500
 	except TypeError as e:
+		current_app.logger.info('Failed to get video: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': str(e)})
+						'message': 'Video does not exist'}), 404
+	
+	if video is None:
+		current_app.logger.info('No video returned')
+		return jsonify({'result': 'error',
+						'message': 'Video does not exist'}), 404
 	
 	# Convert sqlite3.Row object to dict for json
 	video = {key: video[key] for key in video.keys()}
 	
-	# todo: format upload_date (YYYYMMDD), modification_time (timestamp), HTTP basic auth in web path
+	# Generate URLs for video file and thumbnail
+	video['path'] = params['web_path'] + html.escape(Path(video['folder_path']).joinpath(Path(video['filename'])).as_posix())
+	if video['thumbnail']:
+		video['thumbnail'] = params['web_path'] + html.escape(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
+	# Remove unnecessary fields
+	del video['filename'], video['folder_path']
+	# Format duration
+	if video['duration'] is not None:
+		video['duration'] = format_duration(video['duration'])
+	# Convert strings back to json
+	for key in ('categories', 'tags'):
+		if key:
+			video[key] = json.loads(video[key])
+
+	# todo:
+	# maybe move the dict stuff (same w playlists) + file_path to get_video so can grab on page load too
+	  # only remove extra unneeded keys here
+	# rmb thumb urls for /playlist
+	# format upload_date (YYYYMMDD), modification_time (timestamp), duration
 	
 	return jsonify({'result': 'ok',
 					'data': video})

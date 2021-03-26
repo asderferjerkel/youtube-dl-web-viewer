@@ -1,31 +1,33 @@
 {% extends 'base.html' %}
 
 {% block content %}
-	<h2>{{ title }}</h2>
-	
-	<table>
-		<thead>
-			<tr>
-				<th>Date</th>
-				<th>Level</th>
-				<th>Message</th>
-			</tr>
-		</thead>
-		<tbody>
-			{% for entry in log %}
+	<div class="full-width">
+		<h2>{{ title }}</h2>
+		
+		<table>
+			<thead>
 				<tr>
-					<td>{{ entry.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}
-					<td>{{ entry.level }}</td>
-					<td>{{ entry.message }}</td>
+					<th>Date</th>
+					<th>Level</th>
+					<th>Message</th>
 				</tr>
-			{% endfor %}
-		</tbody>
-	</table>
-	
-	<div class="form">
-		<form method="POST" action="{{ url_for('index.error_log') }}">
-			{{ form.csrf_token }}
-			{{ form.submit }}
-		</form>
+			</thead>
+			<tbody>
+				{% for entry in log %}
+					<tr>
+						<td>{{ entry.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}
+						<td>{{ entry.level }}</td>
+						<td>{{ entry.message }}</td>
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+		
+		<div class="form">
+			<form method="POST" action="{{ url_for('index.error_log') }}">
+				{{ form.csrf_token }}
+				{{ form.submit }}
+			</form>
+		</div>
 	</div>
 {% endblock %}

@@ -9,8 +9,7 @@ CREATE TABLE folders (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	folder_name TEXT NOT NULL,
 	folder_path TEXT NOT NULL,
-	web_path TEXT NOT NULL,
-	video_count INTEGER NOT NULL
+	video_count INTEGER
 );
 
 CREATE TABLE videos (
@@ -25,7 +24,7 @@ CREATE TABLE videos (
 	title TEXT,
 	description TEXT,
 	upload_date TEXT,
-	modification_time NUMERIC,
+	modification_time TEXT,
 	uploader TEXT,
 	uploader_url TEXT,
 	duration INTEGER,
@@ -53,10 +52,11 @@ CREATE TABLE params (
 	metadata_source TEXT NOT NULL,
 	filename_format TEXT,
 	filename_delimiter TEXT,
+	replace_underscores INTEGER NOT NULL,
 	guests_can_view INTEGER NOT NULL
 );
 
-INSERT INTO params (setup_complete, last_refreshed, refresh_interval, disk_path, web_path, metadata_source, filename_format, filename_delimiter, guests_can_view) VALUES (
+INSERT INTO params (setup_complete, last_refreshed, refresh_interval, disk_path, web_path, metadata_source, filename_format, filename_delimiter, replace_underscores, guests_can_view) VALUES (
 	'0',
 	'0',
 	'86400',
@@ -65,6 +65,7 @@ INSERT INTO params (setup_complete, last_refreshed, refresh_interval, disk_path,
 	'json',
 	'{position}{title}{id}{date}',
 	' - ',
+	'1',
 	'0'
 );
 

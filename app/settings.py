@@ -34,6 +34,7 @@ class GeneralSettings(FlaskForm):
 	metadata_source = SelectField('Get video metadata from', choices = [('json', 'json'), ('filename', 'filename')])
 	filename_format = StringField('Video filename format', [validators.Optional()])
 	filename_delimiter = StringField('Video filename delimiter', [validators.Optional()])
+	replace_underscores = BooleanField('Replace underscores in video and folder titles')
 	guests_can_view = BooleanField('Enable guest access')
 
 @blueprint.route('/firstrun', methods = ('GET', 'POST'))
@@ -97,25 +98,24 @@ def general():
 			units = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400, 'w': 604800}
 			refresh_interval = int(settings_form.refresh_interval.data[:-1]) * units[settings_form.refresh_interval.data[-1]]
 		
-		# Add trailing slash to paths
+		# Add trailing slash to web path if not present
 		# jinja2 autoescapes in templates so web path should be safe enough (famous last words lol)
 		disk_path = settings_form.disk_path.data
 		web_path = settings_form.web_path.data
 		web_path_username = settings_form.web_path_username.data
 		web_path_password = settings_form.web_path_password.data
-		#if disk_path[-1] != '/':
-		#	disk_path = disk_path + '/'
 		if web_path[-1] != '/':
 			web_path = web_path + '/'
 		
 		metadata_source = settings_form.metadata_source.data
 		filename_format = settings_form.filename_format.data
 		filename_delimiter = settings_form.filename_delimiter.data
+		replace_underscores = 1 if settings_form.replace_underscores.data else 0
 		guests_can_view = 1 if settings_form.guests_can_view.data else 0
 		
 		db = get_db()
 		try:
-			db.execute('UPDATE params SET refresh_interval = ?, disk_path = ?, web_path = ?, web_path_username = ?, web_path_password = ?, metadata_source = ?, filename_format = ?, filename_delimiter = ?, guests_can_view = ?', (
+			db.execute('UPDATE params SET refresh_interval = ?, disk_path = ?, web_path = ?, web_path_username = ?, web_path_password = ?, metadata_source = ?, filename_format = ?, filename_delimiter = ?, replace_underscores = ?, guests_can_view = ?', (
 				refresh_interval,
 				disk_path,
 				web_path,
@@ -124,6 +124,7 @@ def general():
 				metadata_source,
 				filename_format,
 				filename_delimiter,
+				replace_underscores,
 				guests_can_view
 				))
 		except sqlite3.OperationalError as e:

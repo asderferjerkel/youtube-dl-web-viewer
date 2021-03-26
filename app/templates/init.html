@@ -1,16 +1,19 @@
 {% extends 'base.html' %}
 
 {% block content %}
-	<h2>{{ title }}</h2>
-	<p>youtube-dl-web-viewer needs to create a database to store playlist and video metadata. You can create it here, or alternatively from the command line with <strong>flask init-db</strong>.</p>
-	{% if message %}
-		<p class="message">{{ message }}</p>
-	{% endif %}
-	
-	<div class="form">
-		<form method="POST" action="{{ url_for('db.init') }}">
-			{{ form.csrf_token }}
-			{{ form.submit }}
-		</form>
+	<div class="full-width">
+		<h2>{{ title }}</h2>
+		
+		<p>youtube-dl-web-viewer needs to create a database to store playlist and video metadata. You can create it here, or alternatively from the command line with <strong>flask init-db</strong>.</p>
+		{% if message %}
+			<p class="message">{{ message }}</p>
+		{% endif %}
+		
+		<div class="form">
+			<form method="POST" action="{{ url_for('db.init') }}">
+				{{ form.csrf_token }}
+				{{ form.submit }}
+			</form>
+		</div>
 	</div>
 {% endblock %}
