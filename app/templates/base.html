@@ -11,25 +11,72 @@
 	<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
 	<script>
 		var csrf_token = "{{ csrf_token() }}";
-		var api_url = "/api";
+		var api_url = "/api/";
 		
-		// set up xhr
+		function addMessage(message) {
+			var parent = document.getElementById("notifications");
+			var notification = document.createElement("li");
+			notification.className = "notification";
+			notification.innerHTML = message;
+			parent.append(notification);
+		};
+		
+		function loadJSON(endpoint, callback) {
+			var args = Array.prototype.slice.call(arguments, 2);
+			var xhr = new XMLHttpRequest();
+			
+			xhr.ontimeout = function () {
+				addMessage("Request timed out: " + api_url + endpoint);
+			};
+			xhr.onload = function() {
+				if (xhr.readyState === 4) {
+					try {
+						var response = JSON.parse(xhr.responseText);
+					} catch(e) {
+						console.error("Error parsing JSON response: " + xhr.responseText)
+					};
+					if (response !== undefined) {
+						if (xhr.status === 200) {
+							callback.apply(response, args);
+						} else {
+							addMessage(response.message);
+						};
+					};
+				};
+			};
+			
+			xhr.open("GET", api_url + endpoint, true);
+			xhr.setRequestHeader("X-CSRFToken", csrf_token);
+			xhr.timeout = "10000";
+			xhr.send(null);
+		};
+		
+		document.addEventListener("DOMContentLoaded", (event) => {
+			document.querySelectorAll(".message").forEach(function(element) {
+				element.querySelector(".controls button").addEventListener("click", () => {
+					element.classList.add("collapsed");
+				});
+			});
+		});
 	</script>
 	</head>
 	
 	<body>
+		<ul id="notifications"></ul>
+		
 		<div class="container">
 			<header>
-				<h1>yt-dl web</h1>
+				<h1><a href="{{ url_for('index.index') }}" aria-label="Home">yt-dl web</a></h1>
+				<nav class="navigation">
 				{% if g.user %}
-					<nav class="user">
+					<div class="user">
 						<ul>
 							<li><a href="{{ url_for('settings.user') }}">{{ g.user['username'] }}</a></li>
 							<li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
 						</ul>
-					</nav>
+					</div>
 					{% if g.user['is_admin'] == 1 %}
-						<nav class="navigation">
+						<div class="pages">
 							<ul>
 							{% for item in nav.top %}
 								<li class="{{ 'active' if item.is_active }}">
@@ -37,33 +84,32 @@
 								</li>
 							{% endfor %}
 							</ul>
-						</nav>
+						</div>
 					{% endif %}
 				{% else %}
-					<nav class="user">
+					<div class="user">
 						<ul>
 							<li><a href="{{ url_for('auth.login') }}">Login</a></li>
 						</ul>
-					</nav>
+					</div>
 				{% endif %}
+				</nav>
 			</header>
 			
+			<section class="messages">
 			{% with messages = get_flashed_messages() %}
 				{% if messages %}
-					<section class="messages">
 					{% for message in messages %}
 						<div class="message">
-							{{ message }}
-							<button class="close" aria-label="Dismiss">X</button>
+							<div class="content">{{ message }}</div>
+							<div class="controls"><button class="close" aria-label="Dismiss">X</button></div>
 						</div>
 					{% endfor %}
-					</section>
 				{% endif %}
 			{% endwith %}
-			
-			<section class="content">
-				{% block content %}{% endblock %}
 			</section>
+			
+			{% block content %}{% endblock %}
 		</div>
 	</body>
 </html>

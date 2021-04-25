@@ -7,46 +7,40 @@
 		
 		{% if update_users_form is not none %}
 			<h3>Update users</h3>
-			<div class="form">
-				<form method="POST" action="{{ url_for('settings.user') }}">
-					{{ update_users_form.csrf_token }}
-					{% for user in update_users_form.users %}
-						<div class="subform">
-							{{ user.user_id }}
-							{{ user.username }}
-							{{ user.password }}
-							{{ user.is_admin }}
-							{{ user.delete_user }}
-							{{ error_list(user) }}
-						</div>
-					{% endfor %}
-					{{ update_users_form.update_many }}
-				</form>
-			</div>
+			<form class="grid-form" method="POST" action="{{ url_for('settings.user') }}">
+				{{ update_users_form.csrf_token }}
+				{% for user in update_users_form.users %}
+					<div class="subform">
+						{{ user.user_id }}
+						{{ user.username }}
+						{{ user.password }}
+						{{ user.is_admin }}
+						{{ user.delete_user }}
+						{{ error_list(user) }}
+					</div>
+				{% endfor %}
+				{{ update_users_form.update_many }}
+			</form>
 		{% endif %}
 		
 		{% if add_user_form is not none %}
 			<h3>Add user</h3>
-			<div class="form">
-				<form method="POST" action="{{ url_for('settings.user') }}">
+			<form class="grid-form" method="POST" action="{{ url_for('settings.user') }}">
 				{{ add_user_form.csrf_token }}
 				{{ render_field(add_user_form.username) }}
 				{{ render_field(add_user_form.password) }}
 				{{ render_field(add_user_form.repeat) }}
 				{{ add_user_form.add }}
-				</form>
-			</div>
+			</form>
 		{% endif %}
 		
 		<h3>Change password</h3>
-		<div class="form">
-			<form method="POST" action="{{ url_for('settings.user') }}">
-				{{ update_self_form.csrf_token }}
-				{{ render_field(update_self_form.current_password) }}
-				{{ render_field(update_self_form.new_password) }}
-				{{ render_field(update_self_form.repeat) }}
-				{{ update_self_form.update }}
-			</form>
-		</div>
+		<form class="grid-form" method="POST" action="{{ url_for('settings.user') }}">
+			{{ update_self_form.csrf_token }}
+			{{ render_field(update_self_form.current_password) }}
+			{{ render_field(update_self_form.new_password) }}
+			{{ render_field(update_self_form.repeat) }}
+			{{ update_self_form.update }}
+		</form>
 	</div>
 {% endblock %}

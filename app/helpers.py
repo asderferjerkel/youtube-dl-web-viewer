@@ -7,7 +7,6 @@ def init_app(app):
 	nav.init_app(app)
 	
 	nav.Bar('top', [
-		nav.Item('Home', 'index.index'),
 		nav.Item('Settings', 'settings.general'),
 		nav.Item('Users', 'settings.user'),
 		nav.Item('Log', 'index.error_log')

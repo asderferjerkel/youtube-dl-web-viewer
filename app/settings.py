@@ -34,7 +34,7 @@ class GeneralSettings(FlaskForm):
 	metadata_source = SelectField('Get video metadata from', choices = [('json', 'json'), ('filename', 'filename')])
 	filename_format = StringField('Video filename format', [validators.Optional()])
 	filename_delimiter = StringField('Video filename delimiter', [validators.Optional()])
-	replace_underscores = BooleanField('Replace underscores in video and folder titles')
+	replace_underscores = BooleanField('Replace underscores in titles')
 	guests_can_view = BooleanField('Enable guest access')
 
 @blueprint.route('/firstrun', methods = ('GET', 'POST'))

@@ -2,7 +2,10 @@
 
 {% block content %}
 	<section class="main">
-		<div class="player">
+		<div id="player">
+			<video controls autoplay>
+				<source>
+			</video>
 		</div>
 		
 		<div class="info">
@@ -10,25 +13,21 @@
 	</section>
 	
 	<section class="sidebar">
-		<div id="playlists" class="list">
-			<ul>
+		<ul id="playlists" class="list">
 			{% if playlists %}
 				{% for playlist in playlists %}
-					<li class="list-item">
-						<a data-playlist="{{ playlist.id }}">
-							<div class="id">{{ playlist.id }}</div>
-							<div class="name">{{ playlist.folder_name }}</div>
-							<div class="count">{{ playlist.video_count }}</div>
-						</a>
+					<li class="playlist" data-playlist="{{ playlist.id }}">
+						<div class="count">
+							<div class="number">{{ playlist.video_count }}</div>
+							<div class="caption">videos</div>
+						</div>
+						<div class="name">{{ playlist.folder_name }}</div>
 					</li>
 				{% endfor %}
 			{% endif %}
-			</ul>
-		</div>
+		</ul>
 
-		<div id="videos" class="list">
-			<ul></ul>
-		</div>
+		<ul id="videos" class="list"></ul>
 	</section>
 
 	<script>

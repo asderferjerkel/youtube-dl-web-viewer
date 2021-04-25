@@ -19,107 +19,275 @@ body {
 	text-align: left;
 }
 
+
+nav li {
+	display: inline-flex;
+}
+
+pre {
+	display: inline;
+	white-space: pre-wrap;
+}
+
 .container {
-	width: 100vw;
-	
 	display: grid;
-	/* https://evanminto.com/blog/intrinsically-responsive-css-grid-minmax-min/ */
-	/* test 100% instead of 100vw (seems ok) */
-	/* swear I worked out how to get rid of media queries with this - how to stack em */
-	/* tl;dr: if element gets smaller than 400px, will take 100% width (ie 1 col) */
-	grid-template-columns: [page-left] 1fr [main-start] minmax(min(400px, 100vw), calc((60vh / 9) * 16)) [main-end sidebar-start] minmax(min(400px, 100vw), 400px) [sidebar-end] 1fr [page-right];
-	grid-template-rows: [header-start] auto [header-end messages-start] min-content [messages-end content-start] auto [content-end];
+	grid-template-columns: [page-left] 1fr [main-left] minmax(0, calc((60vh / 9) * 16)) [main-right sidebar-left] minmax(0, 400px) [sidebar-right] 1fr [page-right];
+	grid-template-rows: [header-top] auto [header-bottom messages-top] min-content [messages-bottom];
 	gap: 20px;
 	
 	background-color: #ccffcc;
 }
 
-header {
-	grid-column: page-left / span page-right;
-	grid-row: header-start / header-end;
-	
-	display: grid;
-	grid-template-columns: [header-left] auto [navigation-start] auto [navigation-end] 1fr [user-start] auto [header-right];
-	column-gap: 20px;
-	
-	background-color: #ffffcc;
-}
-
-.messages {
-	grid-column: main-start / span sidebar-end;
-	grid-row: messages-start / messages-end;
-	
-	background-color: #ffcccc;
-}
-
-.main {
-	grid-column: main-start / main-end;
-	/*grid-row: content-start / content-end; implied place after named positions (also means sidebar goes after not on top of main when small) (prob remove from .container too) */
-	
-	background-color: #ccffff;
-}
-
-.sidebar {
-	grid-column: sidebar-start / sidebar-end;
-	/*grid-row: content-start / content-end; same^^ */
-	
-	background-color: #ffccff;
-	height: 200px; /* testing */
-}
-
-@media (max-width: 400px) {
-	.container {
-		column-gap: 0;
+	header {
+		grid-column: page-left / span page-right;
+		grid-row: header-top / header-bottom;
+		
+		display: grid;
+		grid-template-columns: 0 [title-left] max-content [title-right] 1fr 0;
+		grid-template-rows: 100%; /* Set height for flex elements to fill when not wrapped */
+		column-gap: 20px;
+		
+		background-color: #ffffcc;
 	}
-}
 
-@media (max-width: 860px) {
-	.main, .sidebar {
-		grid-column: main-start / span sidebar-end; /* span whole width */
+	header h1 {
+		/* 20px gap on either side */
+		grid-column: title-left / title-right;
 	}
-}
 
-.full-width {
-	grid-column: main-start / span sidebar-end;
-	/*grid-row: content-start / content-end;*/
-}
+	header .navigation {
+		display: flex;
+		flex-flow: row-reverse wrap;
+		align-content: center; /* Centre uls vertically */
+	}
 
-header h1 {
-	grid-column: header-left / navigation-start;
-	grid-row: 1;
-	margin: 0;
-}
+	.navigation .user, .navigation .pages {
+		/* nav menus fill space and only wrap if needed */
+		flex: 1 auto;
+	}
 
-header .navigation {
-	grid-column: navigation-start / navigation-end;
-	grid-row: 1;
-}
+	.navigation .user {
+		text-align: right;
+	}
 
-header .user {
-	grid-column: user-start / header-right;
-	grid-row: 1;
+	.messages {
+		grid-column: main-left / span sidebar-right;
+		grid-row: messages-top / messages-bottom;
+		
+		background-color: #ffcccc;
+	}
+
+		.messages .message {
+			display: grid;
+			grid-template-columns: 0 [content] 1fr [controls] auto;
+			align-items: center;
+			column-gap: 20px;
+			
+			transition: max-height 2s ease-out;
+		}
+
+			.message .content {
+				grid-column: content;
+			}
+
+			.message .controls {
+				grid-column: controls;
+			}
+
+				.message .controls button {
+					width: 2rem;
+					height: 2rem;
+				}
+
+		.messages .collapsed, .notifications .collapsed {
+			overflow: hidden;
+			height: 0;
+			padding: 0;
+			margin: 0;
+		}
+
+	.main {
+		grid-column: main-left / main-right;
+		
+		background-color: #ccffff;
+	}
+
+		#player {
+			height: 0;
+			overflow: hidden;
+			padding-bottom: calc(100% / (16/9));
+			position: relative;
+			
+			background-color: #99ccff;
+		}
+
+		/*#player::before {
+			content: "";
+			display: inline-block;
+			width: 1px;
+			height: 0;
+			padding-bottom: calc(100% / (16/9));
+		}*/
+		
+		#player video {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+		}	
+
+		.info {
+			height: 200px; /* testing */
+		}
+
+	.sidebar {
+		grid-column: sidebar-left / sidebar-right;
+		
+		padding: 20px;
+		max-height: 80vh;
+		
+		display: grid;
+		grid-template-rows: auto 1fr;
+		
+		background-color: #ffccff;
+	}
 	
-	justify-self: end;
-}
+		#playlists {
+			max-height: 25vh;
+		}
+		
+		.list {
+			list-style: none;
+			overflow-y: auto;
+			
+			--thumb-width: 5.1rem;
+		}
+			
+			.list .playlist, .list .video {
+				display: grid;
+				grid-template-columns: var(--thumb-width) 1fr;
+				align-items: center;
+				
+				width: 100%;
+				cursor: pointer;
+				
+				background-color: aliceblue;
+			}
+				
+				.list li {
+					margin: 5px 0;
+				}
+				
+				.list li:first-child, .list li:last-child {
+					margin: 0;
+				}
+				
+				.list li:hover {
+					background-color: lightgrey;
+				}
+				
+				.list li .count {
+					text-align: center;
+				}
+				
+				.list li .number {
+					font-size: 1.5rem;
+					font-weight: bold;
+				}
+				
+				.list .name {
+					padding: 5px 0;
+					margin: 0 10px;
+				}
+				
+				.playlist .caption {
+					font-size: 0.5rem;
+				}
 
-.player {
-	width: 100%;
+				.playlist .name {
+					text-overflow: ellipsis;
+					overflow: hidden;
+					white-space: nowrap;
+				}
+				
+				.video .thumbnail {
+					height: calc((var(--thumb-width) / 16) * 9);
+					
+					background-color: coral;
+				}
+				
+				.video .count {
+					display: flex; /* Allow margin auto */
+				}
+				
+				.video .number {
+					margin: auto; /* Align centre */
+				}
+
+			.list .selected {
+				background-color: #99ccff;
+			}
 	
-	background-color: #99ccff;
+	@media screen and (max-width: 860px) {
+		.main, .sidebar {
+			/* Remove gap for video, info, sidebar */
+			grid-column: page-left / span page-right;
+		}
+	}
+
+	.full-width {
+		grid-column: main-left / span sidebar-right;
+		
+		margin: 0 100px auto;
+		
+		background-color: #99ccff;
+	}
+	
+	form {
+		max-width: 600px;
+		margin: 20px 40px;
+		
+		/*background-color: antiquewhite;*/
+	}
+
+	.grid-form {
+		display: grid;
+		grid-template-columns: [label] auto [field] 1fr;
+		column-gap: 20px;
+	}
+		
+		.grid-form label {
+			grid-column: label;
+		}
+		
+		.grid-form input, .grid-form select {
+			grid-column: field;
+		}
+		
+		.grid-form .field-help, .grid-form .errors {
+			grid-column: span 2;
+			
+			font-size: 80%;
+			margin: 5px 0 20px 10px;
+		}
+
+#notifications {
+	position: absolute;
+	z-index: 2;
+	top: 50px;
+	right: 15px;
+	
+	list-style: none;
 }
 
-.info {
-	height: 200px; /* testing */
-}
-
-.player::before {
-	content: "";
-	display: inline-block;
-	width: 1px;
-	height: 0;
-	padding-bottom: calc(100% / (16/9));
-}
-
-nav li {
-	display: inline-flex;
-}
+	.notification {
+		max-width: 200px;
+		margin: 10px 0;
+		padding: 10px;
+		box-shadow: 2px 2px 5px black;
+		word-wrap: break-word;
+		hyphens: auto;
+		
+		background-color: lightblue;
+	}

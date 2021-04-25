@@ -164,6 +164,7 @@ def refresh_db(rescan = False):
 			# List folders and subfolders on disk, including root folder
 			disk_folders = [subfolder for subfolder in basepath.glob('**/')]
 			folder_count = len(disk_folders)
+			app.logger.debug('Found folders: ' + str(disk_folders))
 			
 			# Scan each folder for video files
 			for folder_index, folder in enumerate(disk_folders, start = 1):
@@ -229,7 +230,7 @@ def refresh_db(rescan = False):
 					else:
 						app.logger.debug('Adding new folder to database')
 						# Folder does not exist or starting from scratch, add to database
-						if not folder.parts: # Path('.').parts == ()
+						if not folder_relative.parts: # Path('.').parts == ()
 							folder_name = 'Root folder'
 						else:
 							folder_name = folder.name
@@ -710,7 +711,11 @@ def video(video_id):
 	# Convert strings back to json
 	for key in ('categories', 'tags'):
 		if key:
-			video[key] = json.loads(video[key])
+			try:
+				video[key] = json.loads(video[key])
+			except TypeError:
+				# Doesn't exist
+				video[key] = {}
 
 	# todo:
 	# maybe move the dict stuff (same w playlists) + file_path to get_video so can grab on page load too
