@@ -5,6 +5,8 @@ config.py
 app/flaskapp.wsgi
 data.sqlite
 data.sqlite-journal
+# test data
+testvideos/
 # virtualenv (create separately on remote)
 venv/
 # build stuff

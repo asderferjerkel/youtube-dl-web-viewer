@@ -16,9 +16,13 @@ html, body, p, ul, li, h1, h3, h4, h5, h6, button {
 
 body {
 	font-size: 1rem;
+	line-height: 1.2rem;
 	text-align: left;
 }
 
+p {
+	margin: 0 0 1rem 0;
+}
 
 nav li {
 	display: inline-flex;
@@ -111,8 +115,13 @@ pre {
 		
 		background-color: #ccffff;
 	}
-
-		#player {
+		
+		.main .hidden {
+			display: none;
+		}
+		
+		.player {
+			/* Fixed aspect ratio */
 			height: 0;
 			overflow: hidden;
 			padding-bottom: calc(100% / (16/9));
@@ -129,37 +138,230 @@ pre {
 			padding-bottom: calc(100% / (16/9));
 		}*/
 		
-		#player video {
-			position: absolute;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-		}	
-
-		.info {
-			height: 200px; /* testing */
+			.player video {
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+			}
+			
+			.play-manual {
+				position: absolute;
+				z-index: 1;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				
+				display: grid;
+				grid-template-columns: 1fr;
+				grid-template-rows: 1fr;
+				justify-items: center; /* Align centre */
+				align-items: center;
+				
+				background-color: rgba(0, 0, 0, 0.2);
+				transition: background-color 0.7s, opacity 0.2s;
+			}
+			
+				.play-manual:hover {
+					cursor: pointer;
+					background-color: rgba(0, 0, 0, 0);
+				}
+					
+					.play-manual:hover .hover {
+						opacity: 1;
+					}
+				
+				.play-manual img {
+					/* Images overlay each other */
+					grid-row: 1;
+					grid-column: 1;
+					width: 20%;
+				}
+				
+				.play-manual .hover {
+					z-index: 2; /* On top of inactive */
+					opacity: 0;
+					transition: opacity 0.1s;
+				}
+		
+		.info-container {
+			position: relative;
+			display: block; /* Changes to block when video loaded */
+			
+			padding: 1rem;
 		}
-
+			
+			.info {
+				display: grid;
+				grid-template-columns: repeat(6, 1fr);
+				grid-template-rows: auto;
+				grid-template-areas:
+					" title  title  title  title  title  title  "
+					" user   user   user   user   views  rating "
+					" date   date   .      .      format link   "
+					" desc   desc   desc   desc   desc   desc   ";
+				
+				justify-content: space-between;
+				align-items: center;
+			}
+			
+				.title {
+					grid-area: title;
+					
+					font-size: 1.5rem;
+				}
+				
+				.uploader {
+					grid-area: user;
+					
+					margin-right: auto; /* Only clickable where visible */
+					color: inherit;
+					text-decoration: none;
+					font-weight: bold;
+				}
+				
+				.views {
+					grid-area: views;
+				}
+				
+				.rating {
+					grid-area: rating;
+					
+					display: grid;
+					position: relative;
+					grid-template-columns: 1fr auto;
+					grid-template-rows: 1fr;
+					align-items: center; /* Centre vertically */
+					column-gap: 0.5rem;
+				}
+				
+					.rating img {
+						/* Images overlay each other */
+						grid-column: 1;
+						grid-row: 1;
+					}
+				
+					.stars-filled {
+						z-index: 1; /* On top of empty */
+						clip-path: inset(0 100% 0 0); /* Hide by default */
+					}
+				
+				.date {
+					grid-area: date;
+				}
+				
+					.date-type {
+						margin-left: 0.5rem;
+					}
+				
+				.format {
+					grid-area: format;
+				}
+				
+				.link {
+					grid-area: link;
+					
+					display: block;
+					margin: 0 auto; /* Only clickable where visible */
+					color: inherit;
+					text-decoration: none;
+					font-weight: bold;
+				}
+				
+				.views, .rating, .format, .link {
+					text-align: center;
+				}
+				
+				.meta-label {
+					font-size: 0.75rem;
+					line-height: 1rem;
+				}
+			
+				.description-container {
+					grid-area: desc;
+					height: 7rem;
+					-webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+					mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+									
+					display: grid;
+					overflow: hidden;
+					grid-template-columns: repeat(2, auto 1fr);
+					grid-template-rows: min-content auto;
+					grid-template-areas:
+						" desc-text  desc-text  desc-text  desc-text "
+						" tags-label tags       cats-label cats      ";
+					
+					column-gap: 2rem;
+				}
+				
+				.description-container.full-height {
+					height: auto;
+					-webkit-mask-image: unset;
+					mask-image: unset;
+				}
+				
+					.description {
+						grid-area: desc-text;
+						/* js show more button (on parent) if element.offsetHeight < element.scrollHeight */
+					}
+					
+						.description p {
+							margin-bottom: 0.75rem;
+						}
+					
+					.tags-label, .tags, .categories-label, .categories {
+						grid-row: 2;
+					}
+			
+			.show-more-less {
+				position: absolute;
+				display: flex;
+				justify-content: center;
+				width: 100%;
+				bottom: 0;
+			}
+	
 	.sidebar {
 		grid-column: sidebar-left / sidebar-right;
 		
-		padding: 20px;
+		padding: 0.5rem;
 		max-height: 80vh;
 		
 		display: grid;
 		grid-template-rows: auto 1fr;
+		row-gap: 1rem;
 		
 		background-color: #ffccff;
 	}
 	
-		#playlists {
+		.playlists {
 			max-height: 25vh;
+			
+			background-image:
+				url('/static/horizontal-1.svg'),
+				url('/static/vertical-1.svg'),
+				url('/static/horizontal-2.svg'),
+				url('/static/vertical-2.svg');
+		}
+		
+		.videos {
+			background-image:
+				url('/static/horizontal-3.svg'),
+				url('/static/vertical-3.svg'),
+				url('/static/horizontal-4.svg'),
+				url('/static/vertical-4.svg');
 		}
 		
 		.list {
 			list-style: none;
 			overflow-y: auto;
+			padding: 0.75rem; /* Space for border */
+			
+			background-size: 100% 0.5rem, 0.5rem 100%, 100% 0.5rem, 0.5rem 100%;
+			background-position: 0 0, 0 0, 0 100%, 100% 0;
+			background-repeat: no-repeat;
 			
 			--thumb-width: 5.1rem;
 		}
@@ -187,20 +389,20 @@ pre {
 					background-color: lightgrey;
 				}
 				
-				.list li .count {
-					text-align: center;
-				}
+					.list li .count {
+						text-align: center;
+					}
+					
+					.list li .number {
+						font-size: 1.75rem;
+						font-weight: bold;
+					}
 				
-				.list li .number {
-					font-size: 1.5rem;
-					font-weight: bold;
-				}
-				
-				.list .name {
-					padding: 5px 0;
-					margin: 0 10px;
-				}
-				
+					.list .name {
+						padding: 5px 0;
+						margin: 0 10px;
+					}
+					
 				.playlist .caption {
 					font-size: 0.5rem;
 				}
@@ -212,10 +414,26 @@ pre {
 				}
 				
 				.video .thumbnail {
+					position: relative;
 					height: calc((var(--thumb-width) / 16) * 9);
 					
 					background-color: coral;
 				}
+				
+					.video .thumbnail .duration {
+						position: absolute;
+						right: 0.2rem;
+						bottom: 0.2rem;
+						padding: 0 0.2rem;
+						
+						font-size: 0.75rem;
+						background-color: rgba(0, 0, 0, 0.6);
+						color: white;
+					}
+				
+					.video .thumbnail img {
+						height: 100%;
+					}
 				
 				.video .count {
 					display: flex; /* Allow margin auto */
@@ -261,7 +479,7 @@ pre {
 			grid-column: label;
 		}
 		
-		.grid-form input, .grid-form select {
+		.grid-form input, .grid-form select, .grid-form button, .grid-form .field {
 			grid-column: field;
 		}
 		
@@ -271,8 +489,12 @@ pre {
 			font-size: 80%;
 			margin: 5px 0 20px 10px;
 		}
+		
+		.button {
+			appearance: button;
+		}
 
-#notifications {
+.notifications {
 	position: absolute;
 	z-index: 2;
 	top: 50px;
@@ -282,12 +504,14 @@ pre {
 }
 
 	.notification {
-		max-width: 200px;
+		width: 200px;
+		height: auto;
 		margin: 10px 0;
 		padding: 10px;
 		box-shadow: 2px 2px 5px black;
-		word-wrap: break-word;
-		hyphens: auto;
+		/*word-wrap: break-word;
+		hyphens: auto;*/
+		transition: opacity 1s;
 		
 		background-color: lightblue;
 	}

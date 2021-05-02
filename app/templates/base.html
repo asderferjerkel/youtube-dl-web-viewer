@@ -13,45 +13,145 @@
 		var csrf_token = "{{ csrf_token() }}";
 		var api_url = "/api/";
 		
-		function addMessage(message) {
+		function addMessage(message, id = null, disappear = false) {
+			/**
+			 Add a notification
+			   Optionally pass an element ID (will be updated if already exists)
+			   Pass disappear to fade out and remove the notification after 5 seconds
+			*/
 			var parent = document.getElementById("notifications");
-			var notification = document.createElement("li");
-			notification.className = "notification";
-			notification.innerHTML = message;
-			parent.append(notification);
-		};
-		
-		function loadJSON(endpoint, callback) {
-			var args = Array.prototype.slice.call(arguments, 2);
-			var xhr = new XMLHttpRequest();
+			var notification = null;
 			
-			xhr.ontimeout = function () {
-				addMessage("Request timed out: " + api_url + endpoint);
-			};
-			xhr.onload = function() {
-				if (xhr.readyState === 4) {
-					try {
-						var response = JSON.parse(xhr.responseText);
-					} catch(e) {
-						console.error("Error parsing JSON response: " + xhr.responseText)
-					};
-					if (response !== undefined) {
-						if (xhr.status === 200) {
-							callback.apply(response, args);
-						} else {
-							addMessage(response.message);
-						};
-					};
+			if (id !== null) {
+				// Check if passed ID already exists
+				notification = document.getElementById(id);
+				if (notification !== null) {
+					// Update existing notification
+					notification.innerHTML = message;
 				};
 			};
 			
-			xhr.open("GET", api_url + endpoint, true);
-			xhr.setRequestHeader("X-CSRFToken", csrf_token);
-			xhr.timeout = "10000";
-			xhr.send(null);
+			if (notification == null) {
+				// Create new notification
+				notification = document.createElement("li");
+				notification.className = "notification";
+				notification.innerHTML = message;
+				if (id !== null) {
+					// Optionally add ID
+					notification.id = id;
+				};
+				parent.append(notification);
+			};
+			
+			if (disappear) {
+				setTimeout(function() {
+					notification.style.opacity = 0;
+					setTimeout(function() {
+						parent.removeChild(notification);
+					}, 1000);
+				}, 5000);
+			};
 		};
 		
+		async function loadJSON(endpoint) {
+			const response = await fetch(api_url + endpoint, {
+				headers: {
+					"X-CSRFToken": csrf_token
+				}
+			});
+			const json = await response.json();
+
+			if (!response.ok) {
+				if (json.message !== undefined) {
+					addMessage(json.message);
+				} else {
+					console.error("Request failed:", response.statusText);
+				}
+			} else {
+				return json;
+			};
+		};
+		
+		var timer;
+		var lazyTimer;
+		
+		async function refreshDatabase(rescan = false) {
+			var endpoint = "refresh";
+			var message = "Database refresh started";
+			if (rescan == true) {
+				endpoint = "rescan";
+				message = "Database rescan started";
+			};
+			response = await loadJSON(endpoint);
+			addMessage(message, null, true);
+			// Clear timers and update status immediately
+			clearTimeout(timer);
+			clearTimeout(lazyTimer);
+			updateStatus();
+		};
+		
+		async function updateStatus() {
+			response = await loadJSON("status");
+			task = response.data;
+			
+			if (task.status == 1) {
+				// Task running
+				var message = task.message + "<br>" +
+					"Folder " + task.folder + " of " + task.of_folders + "<br>" +
+					"File " + task.file + " of " + task.of_files;
+				addMessage(message, "status");
+				// Queue next update
+				timer = setTimeout(updateStatus, 3000);
+				
+			} else if (task.status == 0) {
+				// Task complete/none running
+				// Setting notification to fade out so include a generic message in the meantime if blank
+				task.message = (task.message == null ? "Task complete" : task.message);
+				addMessage(task.message, "status", true);
+				// Return to lazily checking status
+				lazyTimer = setTimeout(lazyUpdateStatus, 20000);
+				
+			} else if (task.status == -1) {
+				// Task error
+				var message = task.message + "<br>" +
+					"<a href=\"{{ url_for('index.error_log') }}\">See error log for details</a>";
+				addMessage(message, "status");
+				// Return to lazily checking status
+				lazyTimer = setTimeout(lazyUpdateStatus, 20000);
+				
+			} else {
+				var message = "Unexpected API response<br>" +
+					"See developer console for details";
+				addMessage(message, "status");
+				console.error('Unexpected API response: ', task)
+				// Queue next update anyway
+				timer = setTimeout(updateStatus, 10000);
+			};
+		};
+		
+		// Quietly and occasionally check whether a task is running
+		async function lazyUpdateStatus() {
+			response = await loadJSON("status");
+			task = response.data;
+			
+			if (task.status == 1) {
+				// Task is running, switch to updating status normally
+				updateStatus();
+			} else {
+				// Queue next update
+				lazyTimer = setTimeout(lazyUpdateStatus, 20000);
+			};
+		};
+		
+		// todo:
+		// split that^^ out, if a task isn't running it doesn't need to notify on page load
+		// if notification closed, cancel the timeout and any waiting loads
+		
 		document.addEventListener("DOMContentLoaded", (event) => {
+			// Begin lazily checking for task status
+			//lazyUpdateStatus();
+			
+			// Collapse messagae on click
 			document.querySelectorAll(".message").forEach(function(element) {
 				element.querySelector(".controls button").addEventListener("click", () => {
 					element.classList.add("collapsed");

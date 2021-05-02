@@ -9,7 +9,8 @@ import datetime
 from datetime import datetime, timezone
 
 from pathlib import Path
-import html
+#import html
+import urllib
 import re
 
 from flask import Blueprint, g, current_app, request, session, jsonify
@@ -116,6 +117,8 @@ def refresh_db(rescan = False):
 				raise sqlite3.OperationalError('Refresh: Could not lock task') from e
 			
 			with_warnings = False
+			new_folders = 0
+			new_videos = 0
 			
 			# Prepare filename parsing
 			filename_parsing = False
@@ -183,12 +186,12 @@ def refresh_db(rescan = False):
 						files.append(file)
 					# Scan for images as potential thumbnails
 					if file.suffix in app.config['THUMBNAIL_EXTENSIONS']:
-						thumbnails.add(file)
+						thumbnails.append(file)
 					# Scan for .info.json as potential metadata
 					if params['metadata_source'] == 'json':
 						# Multiple file extensions (.info.json) require suffixes, but they are greedy and eat names with dots so we check the string end instead
 						if file.name.endswith(app.config['METADATA_EXTENSION']):
-							metadatas.add(file)
+							metadatas.append(file)
 				
 				# If we found video files
 				if len(files) > 0:
@@ -248,6 +251,8 @@ def refresh_db(rescan = False):
 							app.logger.warning('Refresh: Could not add new folder "' + folder_path + '" to database, skipping')
 							# Skip to next folder
 							continue
+						else:
+							new_folders += 1
 					
 					# Update task with total folder and new video count
 					try:
@@ -454,6 +459,8 @@ def refresh_db(rescan = False):
 						except sqlite3.OperationalError as e:
 							with_warnings = True
 							app.logger.warning('Refresh: Could not add video "' + video['filename'] + '" to the database: ' + str(e))
+						else:
+							new_videos += 1
 			
 			# Update last_refreshed (milliseconds since epoch in UTC)
 			try:
@@ -464,6 +471,9 @@ def refresh_db(rescan = False):
 				# Task complete
 				message = 'Scan completed with warnings' if with_warnings else 'Scan complete'
 				app.logger.debug(message)
+				stats = str(new_folders) + ' new folders, ' + str(new_videos) + ' new videos'
+				app.logger.debug(stats)
+				message = message + '<br>' + stats
 				try:
 					set_task(status = 0, message = message)
 				except sqlite3.OperationalError:
@@ -541,7 +551,7 @@ def list_videos(folder_id):
 	except TypeError as e:
 		raise TypeError('folder_id not an integer') from e
 	
-	return get_db().execute('SELECT id, title, thumbnail, duration, position, playlist_index, strftime("%d/%m/%Y %H:%M", modification_time) AS modification_time, filename FROM videos WHERE folder_id = ?', (folder_id, )).fetchall()
+	return get_db().execute('SELECT videos.id, videos.title, videos.thumbnail, videos.duration, videos.position, videos.playlist_index, strftime("%d/%m/%Y %H:%M", videos.modification_time) AS modification_time, videos.filename, folders.folder_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE folder_id = ?', (folder_id, )).fetchall()
 
 def get_video(id):
 	"""Return a single video"""
@@ -550,7 +560,7 @@ def get_video(id):
 	except TypeError as e:
 		raise TypeError('id not an integer') from e
 	
-	return get_db().execute('SELECT videos.id, videos.filename, videos.thumbnail, videos.video_id, videos.video_url, videos.title, videos.description, strftime("%d/%m/%Y", videos.upload_date) AS upload_date, strftime("%d/%m/%Y %H:%M", videos.modification_time) AS modification_time, videos.uploader, videos.uploader_url, videos.duration, videos.view_count, videos.like_count, videos.dislike_count, videos.average_rating, videos.categories, videos.tags, videos.height, videos.vcodec, videos.video_format, videos.fps, folders.folder_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE videos.id = ?', (id, )).fetchone()
+	return get_db().execute('SELECT videos.folder_id, videos.id, videos.filename, videos.thumbnail, videos.video_id, videos.video_url, videos.title, videos.description, strftime("%d/%m/%Y", videos.upload_date) AS upload_date, strftime("%d/%m/%Y %H:%M", videos.modification_time) AS modification_time, videos.uploader, videos.uploader_url, videos.duration, videos.view_count, videos.like_count, videos.dislike_count, videos.average_rating, videos.categories, videos.tags, videos.height, videos.vcodec, videos.video_format, videos.fps, folders.folder_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE videos.id = ?', (id, )).fetchone()
 
 @blueprint.route('/refresh')
 @login_required('user', api = True)
@@ -639,6 +649,13 @@ def playlists():
 def playlist(folder_id):
 	"""List videos in a playlist"""
 	try:
+		params = get_params()
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to get params: ' + str(e))
+		return jsonify({'result': 'error',
+						'message': 'Failed to get params'})
+	
+	try:
 		# todo: add sort
 		videos = list_videos(folder_id)
 	except sqlite3.OperationalError as e:
@@ -658,9 +675,13 @@ def playlist(folder_id):
 	# Convert list of sqlite3.Row objects to list of dicts for json, removing filenames
 	videos = [{key: row[key] for key in row.keys() if key != 'filename'} for row in videos]
 	
-	# Format duration
 	for video in videos:
+		# Format duration
 		video.update((key, format_duration(value)) for key, value in video.items() if key == 'duration' and value is not None)
+		# Generate thumbnail URL
+		#video['thumbnail'] = params['web_path'] + html.escape(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
+		# Path portion needs spaces escaping too
+		video['thumbnail'] = params['web_path'] + urllib.parse.quote(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
 	
 	# Todo: default sort if not provided, return available sorts if position/playlist_index/modification_time (in order) in videos[0] if len(videos) > 0, accept sort param
 	# Can then remove sort keys here (or just return them as extra from list_videos)
@@ -700,9 +721,9 @@ def video(video_id):
 	video = {key: video[key] for key in video.keys()}
 	
 	# Generate URLs for video file and thumbnail
-	video['path'] = params['web_path'] + html.escape(Path(video['folder_path']).joinpath(Path(video['filename'])).as_posix())
+	video['path'] = params['web_path'] + urllib.parse.quote(Path(video['folder_path']).joinpath(Path(video['filename'])).as_posix())
 	if video['thumbnail']:
-		video['thumbnail'] = params['web_path'] + html.escape(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
+		video['thumbnail'] = params['web_path'] + urllib.parse.quote(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
 	# Remove unnecessary fields
 	del video['filename'], video['folder_path']
 	# Format duration
@@ -710,12 +731,12 @@ def video(video_id):
 		video['duration'] = format_duration(video['duration'])
 	# Convert strings back to json
 	for key in ('categories', 'tags'):
-		if key:
+		if video[key]:
 			try:
 				video[key] = json.loads(video[key])
 			except TypeError:
-				# Doesn't exist
-				video[key] = {}
+				# Return none if empty list
+				pass
 
 	# todo:
 	# maybe move the dict stuff (same w playlists) + file_path to get_video so can grab on page load too

@@ -15,9 +15,10 @@ blueprint = Blueprint('index', __name__)
 class ClearLogForm(FlaskForm):
 	submit = SubmitField('Clear error log')
 
-@blueprint.route('/')
+@blueprint.route('/', defaults = {'video': None})
+@blueprint.route('/v/<int:video>')
 @login_required('guest')
-def index():
+def index(video):
 	# check if db needs updating: wrap with @request_queued (after login_required) + import from app.helpers
 		 # see https://exploreflask.com/en/latest/views.html
 		 # or just do in js
@@ -55,7 +56,7 @@ def index():
 	
 	last_refreshed = params['last_refreshed']
 	
-	return render_template('index.html', playlists = playlists, api_available = api_available, last_refreshed = last_refreshed)
+	return render_template('index.html', playlists = playlists, video = video, api_available = api_available, last_refreshed = last_refreshed)
 
 @blueprint.route('/log', methods=('GET', 'POST'))
 @login_required('admin')

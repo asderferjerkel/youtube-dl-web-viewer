@@ -2,6 +2,7 @@ import functools
 import sqlite3
 
 from pathlib import Path
+from datetime import datetime
 
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash	
@@ -164,7 +165,17 @@ def general():
 			# Set selected to current setting
 			settings_form.metadata_source.default = metadata_source
 	
-	return render_template('settings/general.html', title = 'General settings', form = settings_form)
+	# Get database last refreshed
+	try:
+		params = get_params()
+	except sqlite3.OperationalError as e:
+		flash('Failed to get database last updated date: ' + str(e))
+	if params['last_refreshed'] == 0:
+		last_refreshed = 'Never'
+	else:
+		last_refreshed = datetime.strftime(datetime.fromtimestamp(params['last_refreshed']), "%d/%m/%Y %H:%M")
+	
+	return render_template('settings/general.html', title = 'General settings', form = settings_form, last_refreshed = last_refreshed)
 
 @blueprint.route('/user', methods = ('GET', 'POST'))
 @login_required('user')

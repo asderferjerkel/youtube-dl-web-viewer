@@ -11,7 +11,7 @@
 			{{ render_field(form.disk_path) }}
 			<div class="field-help">Path must exist. Subfolders will be treated as playlists. You can move your videos and update this path without a database rescan.</div>
 			{{ render_field(form.web_path) }}
-			<div class="field-help">Also thumbnails and subtitles. HTTP basic auth user/password can be supplied like https://user:password@example.com/videos/</div>
+			<div class="field-help">Also thumbnails and subtitles.</div>
 			{{ render_field(form.metadata_source) }}
 			<div class="field-help">json falls back to filename if missing, requires database rescan to update existing video metadata</div>
 			{{ render_field(form.filename_format) }}
@@ -21,15 +21,26 @@
 			{{ render_field(form.replace_underscores) }}
 			<div class="field-help">Looks nicer imo if you use youtube-dl's <pre>--restrict-filenames</pre> option</div>
 			{{ render_field(form.guests_can_view) }}
-			<div class="field-help">If checked, videos are publicly viewable. Does not protect video URLs or HTTP basic auth username/password. Guests cannot access settings or refresh/rescan the database.</div>
+			<div class="field-help">If checked, videos are publicly viewable. Does not protect video URLs. Guests cannot access settings or refresh/rescan the database.</div>
 			<input name="submit" type="submit" value="Update">
 		</form>
 		
-		<div>
-			# refresh/rescan/clear buttons
-			# set both disabled on click until job completed (same on page load if task running)
-			# also do last updated date
-		</div>
+		<h3>Database</h3>
+		# todo: set both disabled on click until job completed (same on page load if task running)
+		<form class="grid-form" action="{{ url_for('db.init') }}">
+			<label for="last-refreshed">Database last updated</label>
+			<div id="last-refreshed" class="field">{{ last_refreshed }}</div>
+			<div class="field-help"></div>
+			<label for="refresh-database">Refresh database</label>
+			<button type="button" id="refresh-database">Refresh database</button>
+			<div class="field-help">Scan for new playlists and videos</div>
+			<label for="rescan-database">Rescan database</label>
+			<button type="button" id="rescan-database">Rescan database</button>
+			<div class="field-help">Clear existing videos and rescan all folders</div>
+			<label for="delete-database">Delete and recreate database</label>
+			<input id="delete-database" type="submit" value="Delete database">
+			<div class="field-help">Clear all data including users and settings (but not video files), and recreate the database</div>
+		</form>
 		
 		<h3>Help</h3>
 		<dl>
@@ -61,4 +72,15 @@
 			<dd>Use the <strong>video filename delimiter</strong> to specify how your parameters are separated, including spaces (e.g. "<pre> - </pre>"). Since video titles could contain your delimiter string, if you include <pre>{title}</pre> in your format template, the parser will first try to match the other parameters to the left and right of the title, leaving what remains as the video title. This is likely to break with some filename formats, so I recommend you download .json metadata along with your videos!</dd>
 		</dl>
 	</div>
+	
+	<script>
+		document.addEventListener("DOMContentLoaded", (event) => {
+			document.getElementById("refresh-database").addEventListener("click", () => {
+				refreshDatabase(false);
+			});
+			document.getElementById("rescan-database").addEventListener("click", () => {
+				refreshDatabase(true);
+			});
+		});
+	</script>
 {% endblock %}

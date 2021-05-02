@@ -7,7 +7,7 @@
 		
 		<p>Create a user to protect your settings and maintenance tasks. You can add more users later.</p>
 		
-		<div class="form">
+		<div class="grid-form">
 			<form method="POST" action="{{ url_for('settings.first_run') }}">
 				{{ form.csrf_token }}
 				{{ render_field(form.username) }}

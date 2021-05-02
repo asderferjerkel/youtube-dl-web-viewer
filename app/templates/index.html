@@ -2,18 +2,58 @@
 
 {% block content %}
 	<section class="main">
-		<div id="player">
+		<div id="player" class="player">
 			<video controls autoplay>
 				<source>
 			</video>
+			<button class="play-manual hidden">
+				<img class="hover" src="{{ url_for('static', filename = 'play-hover.svg') }}">
+				<img src="{{ url_for('static', filename = 'play.svg') }}">
+			</button>
 		</div>
 		
-		<div class="info">
+		<div id="info" class="info-container hidden">
+			<div class="info">
+				<p class="title"></p>
+				<a class="uploader"></a>
+				<div class="views">
+					<span class="views-value"></span>
+					<span>views</span>
+				</div>
+				<div class="rating">
+					<img class="stars-filled" src="{{ url_for('static', filename = 'stars-filled.svg') }}">
+					<img class="stars-empty" src="{{ url_for('static', filename = 'stars-empty.svg') }}">
+					<div class="rating-value"></div>
+				</div>
+				<div class="date">
+					<div class="meta-label date-type"></div>
+					<div class="date-value"></div>
+				</div>
+				<div class="format">
+					<div class="meta-label resolution-fps"></div>
+					<div class="meta-label codec"></div>
+				</div>
+				<a class="link" target="_blank">
+					<div class="original-link">pic (img)</div>
+					<div class="meta-label">View original</div>
+				</a>
+				<div class="description-container">
+					<div class="description"></div>
+					<div class="tags-label">Tags:</div>
+					<div class="tags"></div>
+					<div class="categories-label">Categories:</div>
+					<div class="categories"></div>
+				</div>
+			</div>
+			<div class="show-more-less">
+				<a class="meta-label more-link">Show more</a>
+				<a class="meta-label less-link hidden">Show less</a>
+			</div>
 		</div>
 	</section>
 	
 	<section class="sidebar">
-		<ul id="playlists" class="list">
+		<ul id="playlists" class="list playlists">
 			{% if playlists %}
 				{% for playlist in playlists %}
 					<li class="playlist" data-playlist="{{ playlist.id }}">
@@ -27,10 +67,11 @@
 			{% endif %}
 		</ul>
 
-		<ul id="videos" class="list"></ul>
+		<ul id="videos" class="list videos"></ul>
 	</section>
 
 	<script>
+		var video_id = {{ video if video else 'null' }};
 		var api_available = {{ 'true' if api_available else 'false' }};
 		var last_refreshed = "{{ last_refreshed }}";
 	</script>
