@@ -7,6 +7,7 @@ SECRET_KEY = 'dev'
 
 #######################################################
 # Most stuff below this line can be left as default
+#######################################################
 
 # Session lifetime: defaults to 3 months
 PERMANENT_SESSION_LIFETIME = datetime.timedelta(days=93)
