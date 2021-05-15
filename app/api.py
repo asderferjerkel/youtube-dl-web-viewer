@@ -23,7 +23,7 @@ blueprint = Blueprint('api', __name__, url_prefix='/api')
 
 # todo: deal with cancelling tasks on server stop
 
-@app.before_first_request
+@current_app.before_first_request
 def before_first_request():
 	"""Reset running task on server restart"""
 	try:
