@@ -26,10 +26,14 @@ def init_app(app):
 def get_db():
 	"""Connect to the database, if not in the current request context. Creates the database file if it doesn't exist."""
 	if 'db' not in g:
-		# Get types from columns
-		g.db = sqlite3.connect(current_app.config['DATABASE'], detect_types = sqlite3.PARSE_DECLTYPES)
-		# Return rows as dicts
-		g.db.row_factory = sqlite3.Row
+		try:
+			# Get types from columns
+			g.db = sqlite3.connect(current_app.config['DATABASE'], detect_types = sqlite3.PARSE_DECLTYPES)
+		except sqlite3.OperationalError as e:
+			current_app.logger.error('Failed to open database: ' + str(e))
+		else:
+			# Return rows as dicts
+			g.db.row_factory = sqlite3.Row
 	return g.db
 
 def close_db(e = None):
