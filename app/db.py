@@ -25,7 +25,7 @@ def init_app(app):
 	app.cli.add_command(create_db_command)
 
 def get_db():
-	"""Connect to the database, if not in the current request context. Creates the database file if it doesn't exist."""
+	"""Connect to the database (if not in the current request context). Creates the database file if it doesn't exist."""
 	if 'db' not in g:
 		# Get types from columns
 		g.db = sqlite3.connect(os.path.join(current_app.instance_path, current_app.config['DATABASE']), detect_types = sqlite3.PARSE_DECLTYPES)
