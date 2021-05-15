@@ -23,13 +23,13 @@ blueprint = Blueprint('api', __name__, url_prefix='/api')
 
 # todo: deal with cancelling tasks on server stop
 
-@current_app.before_first_request
-def before_first_request():
+def init_app(app):
 	"""Reset running task on server restart"""
-	try:
-		set_task(status = 0)
-	except sqlite3.OperationalError as e:
-		current_app.logger.warning('Failed to clear task status')
+	with app.app_context():
+		try:
+			set_task(status = 0)
+		except sqlite3.OperationalError as e:
+			current_app.logger.warning('Failed to clear task status')
 
 def csrf_protect(view):
 	@functools.wraps(view)
