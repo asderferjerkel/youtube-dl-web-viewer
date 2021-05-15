@@ -1,10 +1,8 @@
 # notes
 design/
 # paths and secrets, users will copy template from -dist
-config.py
 app/flaskapp.wsgi
-data.sqlite
-data.sqlite-journal
+instance/
 # test data
 testvideos/
 # virtualenv (create separately on remote)

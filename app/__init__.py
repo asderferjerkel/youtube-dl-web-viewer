@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 
 from flask import Flask
 from flask_wtf.csrf import CSRFProtect
@@ -7,13 +8,13 @@ from flask_wtf.csrf import CSRFProtect
 import datetime
 
 def create_app():
-	app = Flask(__name__)
+	app = Flask(__name__, instance_relative_config = True)
 	
 	# Default config
 	# Copy config.py-dist to config.py to override
 	app.config.from_mapping(
 		SECRET_KEY = 'dev',
-		PERMANENT_SESSION_LIFETIME = datetime.timedelta(days=93), # Sessions default to 3 months
+		PERMANENT_SESSION_LIFETIME = datetime.timedelta(days = 93), # Sessions default to 3 months
 		DATABASE = 'data.sqlite',
 		VIDEO_EXTENSIONS = {
 			'.mp4': 'video/mp4',
@@ -46,7 +47,7 @@ def create_app():
 	)
 	
 	# Get user config if it exists
-	app.config.from_pyfile('config.py', silent=True)
+	app.config.from_pyfile('config.py', silent = True)
 	
 	# Set up basic logging
 	logging.basicConfig(
