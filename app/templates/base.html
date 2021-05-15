@@ -1,3 +1,4 @@
+{% from 'macros.j2' import render_sprite %}
 <!DOCTYPE html>
 <html lang="en">
 	<head>
@@ -8,201 +9,290 @@
 		{% else %}
 			<title>youtube-dl-web-viewer</title>
 		{% endif %}
-	<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
-	<script>
-		var csrf_token = "{{ csrf_token() }}";
-		var api_url = "/api/";
-		
-		function addMessage(message, id = null, disappear = false) {
-			/**
-			 Add a notification
-			   Optionally pass an element ID (will be updated if already exists)
-			   Pass disappear to fade out and remove the notification after 5 seconds
-			*/
-			var parent = document.getElementById("notifications");
-			var notification = null;
-			
-			if (id !== null) {
-				// Check if passed ID already exists
-				notification = document.getElementById(id);
-				if (notification !== null) {
-					// Update existing notification
-					notification.innerHTML = message;
-				};
+		<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename = 'favicon.svg') }}">
+		<link rel="alternate icon" sizes="32x32" href="{{ url_for('static', filename = 'favicon.ico') }}">
+		<link rel="apple-touch-icon" href="{{ url_for('static', filename = 'apple-touch-icon.png') }}">
+		<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
+		<script>
+			// Times in milliseconds
+			const delay = {
+				notificationFade: 5000, // Fade disappearing notifications after
+				notificationAnim: 500, // Wait for notification animation
+				checkStatus: 60000, // Check for running task every
+				refreshStatus: 3000 // Refresh running task status every
 			};
-			
-			if (notification == null) {
-				// Create new notification
-				notification = document.createElement("li");
-				notification.className = "notification";
-				notification.innerHTML = message;
-				if (id !== null) {
-					// Optionally add ID
-					notification.id = id;
-				};
-				parent.append(notification);
-			};
-			
-			if (disappear) {
-				setTimeout(function() {
-					notification.style.opacity = 0;
-					setTimeout(function() {
-						parent.removeChild(notification);
-					}, 1000);
-				}, 5000);
-			};
-		};
-		
-		async function loadJSON(endpoint) {
-			const response = await fetch(api_url + endpoint, {
-				headers: {
-					"X-CSRFToken": csrf_token
-				}
-			});
-			const json = await response.json();
-
-			if (!response.ok) {
-				if (json.message !== undefined) {
-					addMessage(json.message);
-				} else {
-					console.error("Request failed:", response.statusText);
-				}
-			} else {
-				return json;
-			};
-		};
-		
-		var timer;
-		var lazyTimer;
-		
-		async function refreshDatabase(rescan = false) {
-			var endpoint = "refresh";
-			var message = "Database refresh started";
-			if (rescan == true) {
-				endpoint = "rescan";
-				message = "Database rescan started";
-			};
-			response = await loadJSON(endpoint);
-			addMessage(message, null, true);
-			// Clear timers and update status immediately
-			clearTimeout(timer);
-			clearTimeout(lazyTimer);
-			updateStatus();
-		};
-		
-		async function updateStatus() {
-			response = await loadJSON("status");
-			task = response.data;
-			
-			if (task.status == 1) {
-				// Task running
-				var message = task.message + "<br>" +
-					"Folder " + task.folder + " of " + task.of_folders + "<br>" +
-					"File " + task.file + " of " + task.of_files;
-				addMessage(message, "status");
-				// Queue next update
-				timer = setTimeout(updateStatus, 3000);
 				
-			} else if (task.status == 0) {
-				// Task complete/none running
-				// Setting notification to fade out so include a generic message in the meantime if blank
-				task.message = (task.message == null ? "Task complete" : task.message);
-				addMessage(task.message, "status", true);
-				// Return to lazily checking status
-				lazyTimer = setTimeout(lazyUpdateStatus, 20000);
-				
-			} else if (task.status == -1) {
-				// Task error
-				var message = task.message + "<br>" +
-					"<a href=\"{{ url_for('index.error_log') }}\">See error log for details</a>";
-				addMessage(message, "status");
-				// Return to lazily checking status
-				lazyTimer = setTimeout(lazyUpdateStatus, 20000);
-				
-			} else {
-				var message = "Unexpected API response<br>" +
-					"See developer console for details";
-				addMessage(message, "status");
-				console.error('Unexpected API response: ', task)
-				// Queue next update anyway
-				timer = setTimeout(updateStatus, 10000);
-			};
-		};
-		
-		// Quietly and occasionally check whether a task is running
-		async function lazyUpdateStatus() {
-			response = await loadJSON("status");
-			task = response.data;
+			const csrfToken = "{{ csrf_token() }}";
+			const apiUrl = "/api/";
 			
-			if (task.status == 1) {
-				// Task is running, switch to updating status normally
-				updateStatus();
-			} else {
-				// Queue next update
-				lazyTimer = setTimeout(lazyUpdateStatus, 20000);
-			};
-		};
-		
-		// todo:
-		// split that^^ out, if a task isn't running it doesn't need to notify on page load
-		// if notification closed, cancel the timeout and any waiting loads
-		
-		document.addEventListener("DOMContentLoaded", (event) => {
-			// Begin lazily checking for task status
-			//lazyUpdateStatus();
-			
-			// Collapse messagae on click
-			document.querySelectorAll(".message").forEach(function(element) {
-				element.querySelector(".controls button").addEventListener("click", () => {
-					element.classList.add("collapsed");
+			document.addEventListener("DOMContentLoaded", (event) => {
+				// Hide message on click
+				document.querySelectorAll(".message").forEach(function(element) {
+					element.querySelector(".controls button").addEventListener("click", () => {
+						element.classList.add("hidden");
+					});
+				});
+				
+				// Show/hide menu on small screens
+				document.querySelector(".toggle-menu button").addEventListener("click", (element) => {
+					document.querySelector("header .navigation").classList.toggle("toggled");
 				});
 			});
-		});
-	</script>
+			
+				
+			/**
+			 Add a notification
+			   message: Notification text
+			   id: Notification element ID to update (if exists) or set
+			   disappear = true: Fade out and remove after 5 seconds
+			   level: "info", "warn", "false" icon
+			   progress: [folder, of-folders, file, of-files]
+			   actionText: Action button label
+			   action, [args]: Run function(args) when button is clicked
+			*/
+			function addMessage(message, id, disappear = false, level = "info",
+								progress, actionText, action, args = []) {
+				
+				const notifications = document.getElementById("notifications");
+				const template = {
+					levels: {
+						info: document.getElementById("template-info"),
+						warn: document.getElementById("template-warn"),
+						error: document.getElementById("template-error")
+					},
+					notification: document.getElementById("template-notification"),
+					progress: document.getElementById("template-progress"),
+					action: document.getElementById("template-action")
+				};
+				
+				// Get existing notification or null
+				let existing = (id != null
+							  ? document.getElementById(id) : null);
+				
+				// Create from template
+				// Note: using firstElementChild of template as a DocumentFragment
+				// can't be used as a target for some events
+				let notification = template.notification.content.firstElementChild
+					.cloneNode(true);
+				if (id != null) {
+					// Optionally add element ID
+					notification.id = id;
+				}
+				
+				// info/warn/error icon
+				level = (template.levels[level] == null ? "info" : level)
+				let levelTemplate = template.levels[level].content
+					.cloneNode(true);
+				notification.querySelector(".level")
+					.appendChild(levelTemplate);
+				// Add class for background colour
+				notification.classList.add(level);
+				
+				//// Notification content
+				let content = notification.querySelector(".content");
+				// Message (allow linebreaks)
+				content.querySelector(".message").innerText = message;
+				// Progress
+				if (progress != null) {
+					let progressTemplate = template.progress.content
+						.cloneNode(true);
+					console.log(progress, progressTemplate, progressTemplate.querySelectorAll("span"));
+					progressTemplate.querySelectorAll("span").forEach((element, index) => {
+						console.log(element, index);
+						// Add array contents to folder, of-folders, file, of-files
+						element.textContent = progress[index];
+					});
+					content.appendChild(progressTemplate);
+				}
+				// Action button
+				if (typeof(action) === "function") {
+					// Function exists on this page, add button
+					let actionTemplate = template.action.content
+						.cloneNode(true);
+					let actionButton = actionTemplate.querySelector("button")
+					actionButton.textContent = actionText;
+					actionButton.addEventListener("click", () => {
+						action(args);
+						closeNotification(notification);
+					});
+					content.appendChild(actionTemplate);
+				}
+				
+				// Fade out and remove notification
+				function closeNotification(element, afterDelay = false) {
+					// Optionally wait delay.notificationFade
+					delayFor = (afterDelay ? delay.notificationFade : 0);
+					setTimeout(() => {
+						element.style.opacity = 0;
+						// Wait for opacity animation to finish
+						setTimeout(() => {
+							// Remove notification
+							notifications.removeChild(element);
+						}, delay.notificationAnim);
+					}, delayFor);
+				};
+				
+				// Close button
+				notification.querySelector(".close")
+						.addEventListener("click", () => {
+					closeNotification(notification);
+				});
+				
+				// Add to document
+				if (existing !== null) {
+					// Replace existing notification
+					notifications.replaceChild(notification, existing);
+				} else {
+					// Add new notification
+					notifications.appendChild(notification);
+				}	
+				
+				if (disappear) {
+					// Fade and remove after delay
+					closeNotification(notification, true);
+				}
+			};
+			
+			
+			// Load an API endpoint and return the json response
+			// loadJSON("playlist", 1) => api_url/playlist/1
+			async function loadJSON(...params) {
+				const endpoint = params.join("/");
+				const response = await fetch(apiUrl + endpoint, {
+					headers: {
+						"X-CSRFToken": csrfToken
+					}
+				});
+				const json = await response.json();
+				if (!response.ok) {
+					if (json.message !== undefined) {
+						addMessage(json.message, null, true, "warn");
+					} else {
+						console.error("Request failed:", response.statusText);
+					}
+				} else {
+					return json;
+				}
+			};
+			
+			
+			let timer;
+			let lazyTimer;
+			
+			async function refreshDatabase(rescan = false) {
+				let endpoint = (rescan ? "rescan" : "refresh")
+				let message = "Database " + endpoint + " started"
+				await loadJSON(endpoint);
+				addMessage(message, null, true);
+				// Clear timers and update status immediately
+				clearTimeout(timer);
+				clearTimeout(lazyTimer);
+				updateStatus();
+			};
+			
+			// Regularly check task status until complete
+			async function updateStatus() {
+				let response = await loadJSON("status");
+				let task = response.data;
+				console.log(task);
+				if (task.status == 1) {
+					// Task running
+					let progress = [task.folder, task.of_folders,
+									task.file, task.of_files];
+					addMessage(task.message, "status", false, "info", progress);
+					// Queue next update
+					timer = setTimeout(updateStatus, delay.refreshStatus);
+				} else if (task.status == 0) {
+					// Task complete/none running
+					// Generic message if blank
+					task.message = (task.message === null
+								   ? "Database update complete" : task.message);
+					// Offer playlist refresh if on video page
+					addMessage(task.message, "status", false, "info", null,
+							   "Refresh playlists", loadFolders);
+					// Return to lazily checking status
+					lazyTimer = setTimeout(lazyUpdateStatus, delay.checkStatus);
+				} else if (task.status == -1) {
+					// Task error
+					addMessage(task.message, "status", false, "error");
+					// Return to lazily checking status
+					lazyTimer = setTimeout(lazyUpdateStatus, delay.checkStatus);
+				} else {
+					let message = "Unexpected API response\n" +
+								  "See developer console for details";
+					addMessage(message, "status", false, "warning");
+					console.error("Unexpected API response: ", task)
+					// Queue next update anyway
+					timer = setTimeout(updateStatus, delay.checkStatus);
+				}
+			};
+			
+			// Quietly and occasionally check whether a task is running
+			async function lazyUpdateStatus() {
+				let response = await loadJSON("status");
+				let task = response.data;
+				
+				if (task.status === 1 || task.status === -1) {
+					// Task is running or errored, switch to updating status normally
+					updateStatus();
+				} else {
+					// No task running
+					if (response.refresh_due && typeof apiAvailable !== "undefined" && apiAvailable) {
+						// Database refresh due, video page loaded and logged in
+						refreshDatabase();
+					} else {
+						// Queue next update
+						lazyTimer = setTimeout(lazyUpdateStatus, delay.checkStatus);
+					}
+				}
+			};
+		</script>
 	</head>
 	
 	<body>
-		<ul id="notifications"></ul>
-		
-		<div class="container">
-			<header>
-				<h1><a href="{{ url_for('index.index') }}" aria-label="Home">yt-dl web</a></h1>
-				<nav class="navigation">
-				{% if g.user %}
-					<div class="user">
-						<ul>
-							<li><a href="{{ url_for('settings.user') }}">{{ g.user['username'] }}</a></li>
-							<li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+		<div id="container" class="container">
+			<div class="header-container">
+				<header>
+					<a class="site-logo" href="{{ url_for('index.index') }}" aria-label="Home">{{ render_sprite('site') }}</a>
+					<nav class="toggle-menu">
+						<button title="Menu">{{ render_sprite('menu') }}</button>
+					</nav>
+					<nav class="navigation">
+					{% if g.user %}
+						<ul class="user">
+							<li><a href="{{ url_for('settings.user') }}" title="My account">{{ render_sprite('user') }} {{ g.user['username'] }}</a></li>
+							<li><a href="{{ url_for('auth.logout') }}" title="Log out">{{ render_sprite('logout') }}</a></li>
 						</ul>
-					</div>
-					{% if g.user['is_admin'] == 1 %}
-						<div class="pages">
-							<ul>
+						{% if g.user['is_admin'] == 1 %}
+							<ul class="pages">
 							{% for item in nav.top %}
 								<li class="{{ 'active' if item.is_active }}">
-									<a href="{{ item.url }}">{{ item.label }}</a>
+									<a href="{{ item.url }}" title="{{ item.label|capitalize }}">{{ render_sprite(item.label) }}</a>
 								</li>
 							{% endfor %}
 							</ul>
-						</div>
-					{% endif %}
-				{% else %}
-					<div class="user">
-						<ul>
-							<li><a href="{{ url_for('auth.login') }}">Login</a></li>
+						{% endif %}
+					{% else %}
+						<ul class="user">
+							<li><a href="{{ url_for('auth.login') }}" title="Log in">{{ render_sprite('login') }}</a></li>
 						</ul>
-					</div>
-				{% endif %}
-				</nav>
-			</header>
+					{% endif %}
+					</nav>
+				</header>
+			</div>
 			
 			<section class="messages">
-			{% with messages = get_flashed_messages() %}
+			{% with messages = get_flashed_messages(with_categories = true) %}
 				{% if messages %}
-					{% for message in messages %}
-						<div class="message">
+					{% for category, message in messages %}
+						<div class="message {{ category }}">
+							<div class="level">{{ render_sprite(category) }}</div>
 							<div class="content">{{ message }}</div>
-							<div class="controls"><button class="close" aria-label="Dismiss">X</button></div>
+							<div class="controls">
+								<button class="close" aria-label="Dismiss">
+									{{ render_sprite('close') }}
+								</button>
+							</div>
 						</div>
 					{% endfor %}
 				{% endif %}
@@ -211,5 +301,41 @@
 			
 			{% block content %}{% endblock %}
 		</div>
+		<ul id="notifications" class="notifications"></ul>
+		<section class="templates">
+			<template id="template-info">
+				{{ render_sprite('info') }}
+			</template>
+			<template id="template-warn">
+				{{ render_sprite('warn') }}
+			</template>
+			<template id="template-error">
+				{{ render_sprite('error') }}
+			</template>
+			<template id="template-notification">
+				<li class="notification">
+					<div class="level"></div>
+					<div class="content">
+						<div class="message"></div>
+					</div>
+					<button class="close" aria-label="Dismiss">
+						{{ render_sprite('close') }}
+					</button>
+				</li>
+			</template>
+			<template id="template-progress">
+				<div class="progress">
+					<div class="folders">
+						Folders: <span class="folder"></span> / <span class="of-folders"></span>
+					</div>
+					<div class="files">
+						Files: <span class="file"></span> / <span class="of-files"></span>
+					</div>
+				</div>
+			</template>
+			<template id="template-action">
+				<button class="action"></button>
+			</template>
+		</section>
 	</body>
 </html>

@@ -15,10 +15,10 @@ blueprint = Blueprint('index', __name__)
 class ClearLogForm(FlaskForm):
 	submit = SubmitField('Clear error log')
 
-@blueprint.route('/', defaults = {'video': None})
-@blueprint.route('/v/<int:video>')
+@blueprint.route('/', defaults = {'item_type': None, 'item_id': None})
+@blueprint.route('/<string:item_type>/<int:item_id>')
 @login_required('guest')
-def index(video):
+def index(item_type, item_id):
 	# check if db needs updating: wrap with @request_queued (after login_required) + import from app.helpers
 		 # see https://exploreflask.com/en/latest/views.html
 		 # or just do in js
@@ -47,16 +47,27 @@ def index(video):
 	
 	if len(playlists) == 0:
 		playlists = None
-		flash('No videos')
 	
-	api_available = False
+	# Load item from URL on page load
+	load_item = {'type': item_type, 'id': item_id}
+	
+	# Default display prefs for logged-out users (no cookies stored so resets with page load)
+	display_prefs = {'autoplay': True,
+					 'shuffle': False,
+					 'sort_by': 'playlist_index',
+					 'sort_direction': 'desc'}
+	
 	# Logged in users can access the API
+	api_available = False
 	if g.user is not None:
-		api_available = True
+		if params['last_refreshed'] != 0:
+			# Autorefresh doesn't trigger until db has been refreshed once
+			api_available = True
+		if 'display_prefs' in session:
+			# Logged in users store display prefs per session
+			display_prefs = session['display_prefs']
 	
-	last_refreshed = params['last_refreshed']
-	
-	return render_template('index.html', playlists = playlists, video = video, api_available = api_available, last_refreshed = last_refreshed)
+	return render_template('index.html', playlists = playlists, load_item = load_item, api_available = api_available, display_prefs = display_prefs, sort_columns = current_app.config['SORT_COLUMNS'])
 
 @blueprint.route('/log', methods=('GET', 'POST'))
 @login_required('admin')

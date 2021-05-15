@@ -123,6 +123,18 @@ def update_user(id, username = None, password = None, is_admin = None, delete_us
 		)
 		db.commit()
 
+def login_user(id):
+	"""Log in user and create session"""
+	session.clear()
+	session['user_id'] = id
+	# Default display prefs for new session
+	session['display_prefs'] = {'autoplay': True,
+								'shuffle': False,
+								'sort_by': 'playlist_index',
+								'sort_direction': 'desc'}
+	# Sessions last app.config['PERMANENT_SESSION_LIFETIME']
+	session.permanent = True
+
 @blueprint.before_app_request
 def load_user():
 	"""Make user info available to views if logged in"""
@@ -141,7 +153,7 @@ def login():
 	form = LoginUser()
 	
 	if g.user is not None:
-		flash('Already logged in')
+		flash('Already logged in', 'info')
 		return redirect(url_for('index.index'))
 	
 	# If POST request and form is valid
@@ -152,16 +164,15 @@ def login():
 		try:
 			user = get_db().execute('SELECT id, password FROM users WHERE username = ?', (username, )).fetchone()
 		except sqlite3.OperationalError:
-			flash('Database not initialised')
+			flash('Database not initialised', 'error')
 			return redirect(url_for('db.init'))
 		else:
-			if user is None or not check_password_hash(user['password'], password):
-				flash('Incorrect username/password')
+			if (user is None or not check_password_hash(user['password'], password)):
+				flash('Incorrect username/password', 'warn')
 				return redirect(url_for('auth.login'))
 
 		# Successful login
-		session.clear()
-		session['user_id'] = user['id']
+		login_user(user['id'])
 		return redirect(url_for('index.index'))
 	
 	return render_template('login.html', title = 'Login', form = form)
@@ -170,9 +181,9 @@ def login():
 def logout():
 	if g.user is not None:
 		session.clear()
-		flash('Logged out')
+		flash('Logged out', 'info')
 	else:
-		flash('Not logged in')
+		flash('Not logged in', 'warn')
 	
 	return redirect(url_for('auth.login'))
 
@@ -197,7 +208,7 @@ def login_required(user_class = 'user', api = False):
 				if api:
 					return jsonify({'status': 'error',
 									'message': 'Unauthorised'}), 403
-				flash('Page is restricted to admin users.')
+				flash('Page is restricted to admin users.', 'error')
 				return redirect(url_for('index.index'))
 			
 			# Not logged in
@@ -222,7 +233,7 @@ def login_required(user_class = 'user', api = False):
 				return view(**kwargs)
 			
 			# Guests disallowed
-			flash('You must be logged in to view this page.')
+			flash('You must be logged in to view this page.', 'warn')
 			if api:
 				return jsonify({'status': 'error',
 								'message': 'Unauthorised'}), 403

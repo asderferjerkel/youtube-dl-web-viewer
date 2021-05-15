@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from 'macros.html' import render_field, error_list %}
+{% from 'macros.j2' import render_field, error_list %}
 
 {% block content %}
 	<div class="full-width">
@@ -43,4 +43,11 @@
 			{{ update_self_form.update }}
 		</form>
 	</div>
+	
+	<script>
+		document.addEventListener("DOMContentLoaded", (event) => {
+			// Occasionally check for running tasks
+			lazyUpdateStatus();
+		});
+	</script>
 {% endblock %}

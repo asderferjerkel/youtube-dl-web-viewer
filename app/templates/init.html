@@ -6,14 +6,12 @@
 		
 		<p>youtube-dl-web-viewer needs to create a database to store playlist and video metadata. You can create it here, or alternatively from the command line with <strong>flask init-db</strong>.</p>
 		{% if message %}
-			<p class="message">{{ message }}</p>
+			<p class="init-warning"><strong>{{ message }}</strong></p>
 		{% endif %}
 		
-		<div class="form">
-			<form method="POST" action="{{ url_for('db.init') }}">
-				{{ form.csrf_token }}
-				{{ form.submit }}
-			</form>
-		</div>
+		<form method="POST" action="{{ url_for('db.init') }}">
+			{{ form.csrf_token }}
+			{{ form.submit }}
+		</form>
 	</div>
 {% endblock %}

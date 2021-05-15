@@ -7,19 +7,23 @@ def init_app(app):
 	nav.init_app(app)
 	
 	nav.Bar('top', [
-		nav.Item('Settings', 'settings.general'),
-		nav.Item('Users', 'settings.user'),
-		nav.Item('Log', 'index.error_log')
+		nav.Item('settings', 'settings.general'),
+		nav.Item('users', 'settings.user'),
+		nav.Item('log', 'index.error_log')
 		])
 
 def check_conf():
 	"""Warn if development secret keys are being used"""
 	# todo: include flash category in template as per https://flask.palletsprojects.com/en/1.1.x/patterns/flashing/
 	if current_app.config['SECRET_KEY'] == 'dev':
-		flash('Development keys are in use. Your cookies are not secure! Copy config.py-dist to config.py and set SECRET_KEY to dismiss this message.')
+		flash('Development keys are in use. Your cookies are not secure! Copy config.py-dist to config.py and set SECRET_KEY to dismiss this message.', 'warn')
 
 def format_duration(seconds):
 	"""Converts int seconds to a DD:HH:MM:SS / HH:MM:SS / MM:SS / 0:SS-style duration, without leading zeroes"""
+	try:
+		int(seconds)
+	except ValueError:
+		return seconds
 	minutes, seconds = divmod(seconds, 60)
 	hours, minutes = divmod(minutes, 60)
 	days, hours = divmod(hours, 24)

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from 'macros.html' import render_field %}
+{% from 'macros.j2' import render_field %}
 
 {% block content %}
 	<div class="full-width">
@@ -22,15 +22,16 @@
 			<div class="field-help">Looks nicer imo if you use youtube-dl's <pre>--restrict-filenames</pre> option</div>
 			{{ render_field(form.guests_can_view) }}
 			<div class="field-help">If checked, videos are publicly viewable. Does not protect video URLs. Guests cannot access settings or refresh/rescan the database.</div>
-			<input name="submit" type="submit" value="Update">
+			<input name="submit" type="submit" value="Save settings">
 		</form>
 		
 		<h3>Database</h3>
-		# todo: set both disabled on click until job completed (same on page load if task running)
 		<form class="grid-form" action="{{ url_for('db.init') }}">
 			<label for="last-refreshed">Database last updated</label>
 			<div id="last-refreshed" class="field">{{ last_refreshed }}</div>
-			<div class="field-help"></div>
+			<label for="next-refresh">Next database update</label>
+			<div id="next-refresh" class="field">{{ next_refresh }}</div>
+			<div class="field-help">Triggered when the video page is open</div>
 			<label for="refresh-database">Refresh database</label>
 			<button type="button" id="refresh-database">Refresh database</button>
 			<div class="field-help">Scan for new playlists and videos</div>
@@ -45,12 +46,13 @@
 		<h3>Help</h3>
 		<dl>
 			<dt>Database refresh</dt>
-			<dd>youtube-dl-web-viewer uses a database to keep track of your playlists and videos. This database is not updated automatically when you add new videos to your folders, but can be updated on a schedule. The simplest way to add a schedule is to set the <strong>database refresh interval</strong> to a number of seconds (or e.g. 30m for 30 minutes, 12h for 12 hours, 1d for 1 day etc.). Every time the video page is reloaded by a logged-in user, it will check if the database was last updated more than <em>x</em> seconds ago and if so, trigger a refresh.</dd>
-			<dd>In this case the database will only be updated once a user visits the video page, so you could instead run a regular refresh on the backend using something like <a href="https://www.computerhope.com/unix/ucrontab.htm">cron</a> or Task Scheduler. Your crontab entry could look like this:</dd>
+			<dd>youtube-dl-web-viewer uses a database to keep track of your playlists and videos. This database is not updated automatically when you add new videos to your folders, but can be updated on a schedule. The simplest way to add a schedule is to set the <strong>database refresh interval</strong> to a number of seconds (or e.g. 30m for 30 minutes, 12h for 12 hours, 1d for 1 day etc.). If a logged-in user has the video page open, a refresh will be triggered if the database was last updated more than <em>x</em> seconds ago.</dd>
+			<dd>In this case the database will only be updated if the video page is open, so you could instead or additionally run a regular refresh on the backend using something like <a href="https://www.computerhope.com/unix/ucrontab.htm">cron</a> or Task Scheduler. Your crontab entry could look like this:</dd>
 			<dd><pre>0 0 * * 1	export FLASK_APP=app; cd /path/to/youtube-dl-web-viewer && venv/bin/flask refresh</pre></dd>
 			<dd>This would trigger a refresh at 00:00 every Monday.</dd>
 			<dd>Alternatively, if you already run a shell script to regularly download videos, you could trigger a rescan once downloads are complete by adding <pre>export FLASK_APP=app; cd /path/to/youtube-dl-web-viewer && venv/bin/flask refresh</pre> to the end of your script.</dd>
-			<dd>Bear in mind the user you run your crontab entry or shell script as should have write access to the youtube-dl-web-viewer directory (to update the database) and read access to your video path (to scan for new downloads). If you set up a schedule outside this script or prefer not to refresh the database automatically, set the <strong>database refresh interval</strong> to 0 to disable refreshing from the web interface.</dd>
+			<dd>Bear in mind the user you run your crontab entry or shell script as should have write access to the youtube-dl-web-viewer directory (to update the database) and read access to your video path (to scan for new downloads). Only one task will run at a time so it is safe to have multiple mechanisms triggering a refresh.</dd>
+			<dd>To disable automatic updates from the web interface, set the <strong>database refresh interval</strong> to 0.</dd>
 			<dt>Paths</dt>
 			<dd>You need to provide two paths: a folder path on disk which will be scanned for videos, and a base URL where they can be accessed over the web.</dd>
 			<dd>Disk path: e.g. <pre>/home/user/videos/</pre>. If the path contains subfolders, they will be treated as separate playlists. Thumbnails and metadata .json files, if they exist, will be searched for in the same folder as their associated videos and matched by filename. Nesting is currently not supported, so any nested subfolders will just appear as separate playlists.</dd>
@@ -75,6 +77,10 @@
 	
 	<script>
 		document.addEventListener("DOMContentLoaded", (event) => {
+			// Occasionally check for running tasks
+			lazyUpdateStatus();
+			
+			// Listen for refresh/rescan triggered
 			document.getElementById("refresh-database").addEventListener("click", () => {
 				refreshDatabase(false);
 			});

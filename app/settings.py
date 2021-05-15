@@ -11,7 +11,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, BooleanField, HiddenField, validators
 from wtforms.validators import ValidationError
 
-from app.auth import login_required, add_user, update_user, LoginUser, AddUser, UpdateUser, AdminUpdateUser, AdminUpdateUsers
+from app.auth import login_required, add_user, update_user, login_user, LoginUser, AddUser, UpdateUser, AdminUpdateUser, AdminUpdateUsers
 from app.db import get_db, get_params
 from app.helpers import check_conf
 
@@ -49,7 +49,7 @@ def first_run():
 		return redirect(url_for('db.init'))
 	else:
 		if params['setup_complete'] == 1:
-			flash('Setup already completed')
+			flash('Setup already completed', 'warn')
 			return redirect(url_for('settings.general'))
 	
 	# Warn if development keys are being used
@@ -65,18 +65,18 @@ def first_run():
 		try:
 			user_id = add_user(username, password, is_admin = 1)
 		except sqlite3.OperationalError:
-			flash('Failed to create account')
+			flash('Failed to create account', 'error')
 		else:
 			# Log in immediately
-			session.clear()
-			session['user_id'] = user_id
-			flash('Account created successfully')
+			login_user(user_id)
+			
+			flash('Account created successfully', 'info')
 			# Mark setup as complete
 			db = get_db()
 			try:
 				db.execute('UPDATE params SET setup_complete = 1 ORDER BY rowid LIMIT 1')
 			except sqlite3.OperationalError:
-				flash('Could not mark setup as complete')
+				flash('Could not mark setup as complete', 'error')
 			else:
 				db.commit()
 				return redirect(url_for('settings.general'))
@@ -129,21 +129,20 @@ def general():
 				guests_can_view
 				))
 		except sqlite3.OperationalError as e:
-			flash('Failed to update settings: ' + str(e))
+			flash('Failed to update settings: ' + str(e), 'error')
 		else:
 			db.commit()
 			flash('Settings updated.')
-			# Redirect so a refresh doesn't resubmit the form
-			return redirect(url_for('settings.general'))
-			
 			try:
 				params = get_params()
 			except sqlite3.OperationalError as e:
-				flash('Failed to get current settings: ' + str(e))
+				flash('Failed to get current settings: ' + str(e), 'error')
 			else:
 				# Check if this is the first time saving settings
 				if params['last_refreshed'] == 0:
-					flash('Setup complete! Click "Refresh database" below to scan for videos for the first time.')
+					flash('Setup complete! Click "Refresh database" below to scan for videos for the first time.', 'info')
+			# Redirect so a refresh doesn't resubmit the form
+			return redirect(url_for('settings.general'))
 	
 	if request.method == 'GET':
 		# Warn if development keys are being used
@@ -153,9 +152,9 @@ def general():
 		try:
 			params = get_params()
 		except sqlite3.OperationalError as e:
-			flash('Failed to get current settings: ' + str(e))
+			flash('Failed to get current settings: ' + str(e), 'error')
 		else:
-			# Preserve choices for metadata_source but set selected to current setting
+			## Preserve choices for metadata_source but set selected to current setting
 			# Convert sqlite3.Row to dict
 			params = {key: params[key] for key in params.keys()}
 			# Save current setting for metadata_source and remove from dict
@@ -164,18 +163,16 @@ def general():
 			settings_form = GeneralSettings(data = params)
 			# Set selected to current setting
 			settings_form.metadata_source.default = metadata_source
+			
+			# Get database last and next refresh
+			if params['last_refreshed'] == 0:
+				last_refreshed = 'Never'
+				next_refresh = 'Refresh database once to enable autorefresh'
+			else:
+				last_refreshed = datetime.strftime(datetime.fromtimestamp(params['last_refreshed']), '%d/%m/%Y %H:%M') + ' UTC'
+				next_refresh = datetime.strftime(datetime.fromtimestamp(params['last_refreshed'] + params['refresh_interval']), '%d/%m/%Y %H:%M') + ' UTC'
 	
-	# Get database last refreshed
-	try:
-		params = get_params()
-	except sqlite3.OperationalError as e:
-		flash('Failed to get database last updated date: ' + str(e))
-	if params['last_refreshed'] == 0:
-		last_refreshed = 'Never'
-	else:
-		last_refreshed = datetime.strftime(datetime.fromtimestamp(params['last_refreshed']), "%d/%m/%Y %H:%M")
-	
-	return render_template('settings/general.html', title = 'General settings', form = settings_form, last_refreshed = last_refreshed)
+	return render_template('settings/general.html', title = 'General settings', form = settings_form, last_refreshed = last_refreshed, next_refresh = next_refresh)
 
 @blueprint.route('/user', methods = ('GET', 'POST'))
 @login_required('user')
@@ -196,9 +193,9 @@ def user():
 			try:
 				add_user(username, password)
 			except sqlite3.OperationalError:
-				flash('Database error: could not add user')
+				flash('Database error: could not add user', 'error')
 			else:
-				flash('User added')
+				flash('User added', 'info')
 				return redirect(url_for('settings.user'))
 		
 		# Update users
@@ -210,9 +207,9 @@ def user():
 				for user in update_users_form.users:
 					update_user(id = user.user_id.data, username = user.username.data, password = user.password.data, is_admin = user.is_admin.data, delete_user = user.delete_user.data)
 			except sqlite3.OperationalError:
-				flash('Database error: could not update users')
+				flash('Database error: could not update users', 'error')
 			else:
-				flash('Users updated')
+				flash('Users updated', 'info')
 				return redirect(url_for('settings.user'))
 		
 		# Don't prefill users until form successfully validates so it doesn't reset on a failed validation
@@ -224,7 +221,7 @@ def user():
 				# Exclude self
 				users = get_db().execute('SELECT id, username, is_admin FROM users WHERE id != ?', (g.user['id'], )).fetchall()
 			except sqlite3.OperationalError as e:
-				flash('Could not load user data: ' + str(e))
+				flash('Could not load user data: ' + str(e), 'warn')
 			else:
 				while len(update_users_form.users) > 0:
 					# Clear existing entries
@@ -250,17 +247,17 @@ def user():
 		try:
 			user = get_db().execute('SELECT password FROM users WHERE id = ?', (g.user['id'], )).fetchone()
 		except sqlite3.OperationalError:
-			flash('Database error: could not check current password')
+			flash('Database error: could not check current password', 'error')
 		else:
 			if user is None or not check_password_hash(user['password'], current_password):
-				flash('Current password is incorrect')
+				flash('Current password is incorrect', 'warn')
 			else:
 				try:
 					update_user(id = g.user['id'], password = new_password)
 				except sqlite3.OperationalError:
-					flash('Database error: could not change password')
+					flash('Database error: could not change password', 'error')
 				else:
-					flash('Password updated')
+					flash('Password updated', 'info')
 					return redirect(url_for('settings.user'))
 	
 	return render_template('settings/user.html', title = 'User settings', update_users_form = update_users_form, add_user_form = add_user_form, update_self_form = update_self_form)

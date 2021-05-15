@@ -5,11 +5,9 @@ import threading
 
 from collections import OrderedDict
 from itertools import islice
-import datetime
 from datetime import datetime, timezone
 
 from pathlib import Path
-#import html
 import urllib
 import re
 
@@ -20,17 +18,6 @@ from wtforms.validators import ValidationError
 from app.db import get_db, get_params
 from app.auth import login_required
 from app.helpers import format_duration
-
-# one function for refresh/rescan, specify task = rescan (default refresh)
-# if refresh, on check filename, match to db and skip (for each folder get filename list from db?)
-# if rescan, delete from folders, videos tables
-
-# current_task() returns running, complete or error
-# get on page load
-# if running, refresh every 3 secs until complete/error
-# if complete, fade after 10 secs then dismiss()
-# if error, click to ajax dismiss (dismiss() to clear task table and fade element)
-# use json 'message': for msg (also used by login_required, along with 403 (unauth) and 500 (broken)
 
 blueprint = Blueprint('api', __name__, url_prefix='/api')
 
@@ -48,7 +35,7 @@ def csrf_protect(view):
 			csrf.validate_csrf(request.headers.get('X-CSRFToken'))
 		except ValidationError:
 			return jsonify({'result': 'error',
-							'message': 'CSRF error'}), 400
+							'message': 'CSRF error: refresh the page'}), 400
 		
 		return view(*args, **kwargs)
 	return wrapped_view
@@ -116,6 +103,8 @@ def refresh_db(rescan = False):
 				# Must fail if can't set lock on running task
 				raise sqlite3.OperationalError('Refresh: Could not lock task') from e
 			
+			# Compile non-alphanumeric regex for sortable title
+			non_alpha = re.compile('[\W_]+', re.UNICODE)
 			with_warnings = False
 			new_folders = 0
 			new_videos = 0
@@ -125,7 +114,7 @@ def refresh_db(rescan = False):
 			if params['filename_format'] and params['filename_delimiter']:
 				filename_format = re.findall(r'\{\w+\}', params['filename_format'])
 				if len(filename_format) > 0:
-					app.logger.debug('Will try to parse filenames for metadata')
+					app.logger.debug('Filename format present, will try to parse for metadata')
 					filename_parsing = True
 					
 					title_position = None
@@ -185,7 +174,7 @@ def refresh_db(rescan = False):
 					if file.suffix in app.config['VIDEO_EXTENSIONS'].keys():
 						files.append(file)
 					# Scan for images as potential thumbnails
-					if file.suffix in app.config['THUMBNAIL_EXTENSIONS']:
+					elif file.suffix in app.config['THUMBNAIL_EXTENSIONS'].keys():
 						thumbnails.append(file)
 					# Scan for .info.json as potential metadata
 					if params['metadata_source'] == 'json':
@@ -288,24 +277,34 @@ def refresh_db(rescan = False):
 							video['video_format'] = app.config['VIDEO_EXTENSIONS'][file.suffix]
 						except KeyError:
 							with_warnings = True
-							app.logger.warning('Refresh: Did not recognise extension "' + file.suffix + '", add with its MIME type to config.py')
+							app.logger.warning('Refresh: Did not recognise video extension "' + file.suffix + '", add with its MIME type to config.py')
 						# Modification time from file (local time)
 						video['modification_time'] = datetime.fromtimestamp(file.stat().st_mtime)
 						
 						# Match thumbnail
 						video['thumbnail'] = None
+						video['thumbnail_format'] = None
 						for thumb in thumbnails:
-							# Both absolute paths but filenames without extensions should match
-							if file.stem in thumb.stem:
-								app.logger.debug('Video #' + str(file_index) + 'matched thumbnail ' + str(thumb.name))
+							# Match filenames without extensions
+							# [thumb.stem] as list to avoid partial string matches
+							# eg. 'a' in 'asd' = True, 'a' in ['asd'] = False
+							if file.stem in [thumb.stem]:
+								app.logger.debug('Video #' + str(file_index) + ' matched thumbnail ' + str(thumb.name))
 								# Store filename without path
 								video['thumbnail'] = thumb.name
+								try:
+									# Store MIME type
+									video['thumbnail_format'] = app.config['THUMBNAIL_EXTENSIONS'][thumb.suffix]
+								except KeyError:
+									with_warnings = True
+									app.logger.warning('Refresh: Did not recognise thumbnail extension "' + thumb.suffix + '", add with its MIME type to config.py')
 						# Match metadata
 						metadata = None
 						for meta in metadatas:
 							# Path.stem only removes final extension and Path.suffixes cannot be limited to 2 (ie. .info.json), so split once from right on full extension instead
-							if file.stem in meta.name.rsplit(app.config['METADATA_EXTENSION'], 1)[0]:
-								app.logger.debug('Video #' + str(file_index) + 'matched metadata ' + str(meta.name))
+							# Metadata stem as list as above
+							if file.stem in [meta.name.rsplit(app.config['METADATA_EXTENSION'], 1)[0]]:
+								app.logger.debug('Video #' + str(file_index) + ' matched metadata ' + str(meta.name))
 								# Store absolute path to read later
 								metadata = meta
 						
@@ -320,11 +319,10 @@ def refresh_db(rescan = False):
 								# {title} present: since it may contain the delimiter, we split out the rest of the variables and keep what remains as the title
 								# Split filename without extension from left, keep # of vars from before_title
 								left_split = file.stem.split(params['filename_delimiter'])[:len(before_title)]
-								# Split from right, keep # of vars from after_title
-								if len(filename_format) == 1:
-									# If format only contains {title}, skip the right split as [-0:] would return the entire list
-									right_split = []
-								else:
+								# If format only contains {title}, skip the right split as [-0:] would return the entire list
+								right_split = []
+								if len(filename_format) > 1:
+									# Split from right, keep # of vars from after_title
 									right_split = file.stem.rsplit(params['filename_delimiter'])[-len(after_title):]
 								
 								if len(before_title) == len(left_split):
@@ -371,21 +369,21 @@ def refresh_db(rescan = False):
 									if params['replace_underscores']:
 										video['title'] = video['title'].replace(' _ ', ' - ').replace('_', '')
 								
-								if key == '{position}':
+								elif key == '{position}':
 									try:
 										video['position'] = int(value)
 									except ValueError:
 										with_warnings = True
 										app.logger.warning('Refresh: Filename variable {position} is not an integer: "' + str(value) + '"')
 								
-								if key == '{id}':
+								elif key == '{id}':
 									try:
 										video['id'] = str(value)
 									except ValueError:
 										with_warnings = True
 										app.logger.warning('Refresh: Filename variable {id} is not a string')
 								
-								if key == '{date}':
+								elif key == '{date}':
 									try:
 										video['upload_date'] = datetime.strptime(str(value), '%Y%m%d')
 									#if re.fullmatch(r'\d{8}', str(value)):
@@ -452,6 +450,9 @@ def refresh_db(rescan = False):
 										with_warnings = True
 										app.logger.warning('Refresh: Metadata field "extension" unrecognised: ".' + str(mj.get('ext')) + '" (add with its MIME type to config.py)')
 						
+						# Strip non-alphanumeric from title for sorting
+						video['sort_title'] = non_alpha.sub('', video['title'])
+						
 						# Add to database
 						app.logger.debug('Adding video #' + str(file_index) + ': "' + str(video['title']) + '"')
 						try:
@@ -473,7 +474,7 @@ def refresh_db(rescan = False):
 				app.logger.debug(message)
 				stats = str(new_folders) + ' new folders, ' + str(new_videos) + ' new videos'
 				app.logger.debug(stats)
-				message = message + '<br>' + stats
+				message = message + "\n" + stats
 				try:
 					set_task(status = 0, message = message)
 				except sqlite3.OperationalError:
@@ -508,7 +509,7 @@ def add_video(video):
 	Supply a dict of parameters, all but folder_id and filename can be None
 	"""
 	db = get_db()
-	db.execute('INSERT INTO videos (folder_id, filename, thumbnail, position, playlist_index, video_id, video_url, title, description, upload_date, modification_time, uploader, uploader_url, duration, view_count, like_count, dislike_count, average_rating, categories, tags, height, vcodec, video_format, fps) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (
+	db.execute('INSERT INTO videos (folder_id, filename, thumbnail, position, playlist_index, video_id, video_url, title, sort_title, description, upload_date, modification_time, uploader, uploader_url, duration, view_count, like_count, dislike_count, average_rating, categories, tags, height, vcodec, video_format, fps) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (
 		video['folder_id'],
 		video['filename'],
 		video['thumbnail'],
@@ -517,6 +518,7 @@ def add_video(video):
 		video['id'],
 		video['webpage_url'],
 		video['title'],
+		video['sort_title'],
 		video['description'],
 		video['upload_date'],
 		video['modification_time'],
@@ -537,38 +539,53 @@ def add_video(video):
 	db.commit()
 
 def list_folders():
-	"""Returns a list of folders with their ID, name, path and video count"""
-	return get_db().execute('SELECT * FROM folders').fetchall()
+	"""Returns a sorted list of folders with their ID, name, path and video count"""
+	return get_db().execute('SELECT * FROM folders ORDER BY id ASC').fetchall()
 
-def list_videos(folder_id):
-	"""Returns a list of videos by folder ID"""
-	# todo: limit # returned from params?
-	# returns position + playlist_index + modtime so can choose how to sort (show choice if both not null)
-	# todo: add sort_by = default (= playlist_index desc) arg to func
-	# returns filename so refresh can remove existing from files to check
+def list_videos(folder_id, sort_by = 'playlist_index', sort_direction = 'desc'):
+	"""Returns a sorted list of videos by folder ID"""
 	try:
 		folder_id = int(folder_id)
-	except TypeError as e:
-		raise TypeError('folder_id not an integer') from e
+	except ValueError as e:
+		raise ValueError('folder_id not an integer') from e
 	
-	return get_db().execute('SELECT videos.id, videos.title, videos.thumbnail, videos.duration, videos.position, videos.playlist_index, strftime("%d/%m/%Y %H:%M", videos.modification_time) AS modification_time, videos.filename, folders.folder_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE folder_id = ?', (folder_id, )).fetchall()
+	if sort_by not in current_app.config['SORT_COLUMNS'].keys():
+		raise ValueError('Column not allowed for sorting')
+	
+	if sort_direction == 'asc':
+		direction_string = ' ASC'
+	elif sort_direction == 'desc':
+		direction_string = ' DESC'
+	else:
+		raise ValueError('Sort direction must be "asc" or "desc"')
+	
+	sort_string = ' ORDER BY videos.' + sort_by + direction_string
+	if sort_by not in ['playlist_index', 'position', 'title']:
+		# Secondary sorts for all but above in case of duplicate/missing values
+		sort_string += (', videos.playlist_index' + direction_string +
+					    ', videos.position' + direction_string)
+	# All sorts finally fall back to ID 
+	sort_string += ', videos.id' + direction_string
+	
+	return get_db().execute('SELECT videos.id, videos.title, videos.thumbnail, videos.duration, videos.filename, folders.folder_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE folder_id = ?' + sort_string, (folder_id, )).fetchall()
 
 def get_video(id):
 	"""Return a single video"""
 	try:
 		id = int(id)
-	except TypeError as e:
-		raise TypeError('id not an integer') from e
+	except ValueError as e:
+		raise ValueError('id not an integer') from e
 	
-	return get_db().execute('SELECT videos.folder_id, videos.id, videos.filename, videos.thumbnail, videos.video_id, videos.video_url, videos.title, videos.description, strftime("%d/%m/%Y", videos.upload_date) AS upload_date, strftime("%d/%m/%Y %H:%M", videos.modification_time) AS modification_time, videos.uploader, videos.uploader_url, videos.duration, videos.view_count, videos.like_count, videos.dislike_count, videos.average_rating, videos.categories, videos.tags, videos.height, videos.vcodec, videos.video_format, videos.fps, folders.folder_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE videos.id = ?', (id, )).fetchone()
+	return get_db().execute('SELECT videos.folder_id, videos.id, videos.filename, videos.thumbnail, videos.video_id, videos.video_url, videos.title, videos.description, strftime("%d/%m/%Y", videos.upload_date) AS upload_date, strftime("%d/%m/%Y %H:%M", videos.modification_time) AS modification_time, videos.uploader, videos.uploader_url, videos.duration, videos.view_count, videos.like_count, videos.dislike_count, videos.average_rating, videos.categories, videos.tags, videos.height, videos.vcodec, videos.video_format, videos.fps, folders.folder_path, folders.folder_name FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE videos.id = ?', (id, )).fetchone()
 
 @blueprint.route('/refresh')
 @login_required('user', api = True)
+@csrf_protect
 def refresh():
 	"""Scan only new files for videos"""
 	try:
 		refresh_db()
-	except (BlockingIOError, sqlite3.OperationalError) as e: # also add thread error
+	except (BlockingIOError, sqlite3.OperationalError) as e: # todo: also add thread error
 		current_app.logger.error('Failed to start refresh: ' + str(e))
 		return jsonify({'result': 'error',
 						'message': str(e)}), 500
@@ -577,11 +594,12 @@ def refresh():
 
 @blueprint.route('/rescan')
 @login_required('admin', api = True)
+@csrf_protect
 def rescan():
 	"""Clear existing data and rescan all files for videos (restricted to admin users)"""
 	try:
 		refresh_db(rescan = True)
-	except (BlockingIOError, sqlite3.OperationalError) as e: # also add thread error
+	except (BlockingIOError, sqlite3.OperationalError) as e: # todo: also add thread error
 		current_app.logger.error('Failed to start rescan: ' + str(e))
 		return jsonify({'result': 'error',
 						'message': str(e)}), 500
@@ -595,6 +613,7 @@ def status():
 	"""Check the status of the currently-running task"""
 	try:
 		task = get_task()
+		params = get_params()
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to get status: ' + str(e))
 		return jsonify({'result': 'error',
@@ -603,11 +622,20 @@ def status():
 	# Convert sqlite3.Row object to dict for json
 	task = {key: task[key] for key in task.keys()}
 	
+	# Calculate next database refresh
+	refresh_due = False
+	time_now = datetime.now().replace(tzinfo=timezone.utc).timestamp()
+	next_refresh = params['last_refreshed'] + params['refresh_interval']
+	if next_refresh < time_now:
+		refresh_due = True
+	
 	return jsonify({'result': 'ok',
+					'refresh_due': refresh_due,
 					'data': task})
 
 @blueprint.route('/dismiss')
 @login_required('user', api = True)
+@csrf_protect
 def dismiss():
 	"""
 	Dismiss the last error from appearing in the UI
@@ -622,8 +650,38 @@ def dismiss():
 	
 	return jsonify({'result': 'ok'})
 
+@blueprint.route('/prefs/<string:pref>/<string:value>')
+@login_required('user', api = True)
+@csrf_protect
+def set_preference(pref, value):
+	"""Save a display preference in the logged-in user's session"""
+	allowed_prefs = {'autoplay': ['0', '1'],
+					 'shuffle': ['0', '1'],
+					 'sort_by': current_app.config['SORT_COLUMNS'],
+					 'sort_direction': ['asc', 'desc']}
+	
+	if pref in allowed_prefs:
+		if value in allowed_prefs[pref]:
+			if (pref in ['autoplay', 'shuffle']):
+				subs = {'0': False, '1': True}
+				value = subs[value]
+			if 'display_prefs' not in session:
+				return jsonify({'status': 'error',
+								'message': 'Preferences missing from session, log out and in again'}), 500
+		else:
+			return jsonify({'status': 'error',
+							'message': 'Unknown value for preference'}), 500
+	else:
+		return jsonify({'status': 'error',
+						'message': 'Unknown preference'}), 500
+	
+	session['display_prefs'][pref] = value
+	return jsonify({'result': 'ok',
+					'message': 'Display preferences updated'})
+
 @blueprint.route('/playlists')
 @login_required('guest', api = True)
+@csrf_protect
 def playlists():
 	"""List playlist IDs, names and video counts"""
 	try:
@@ -638,15 +696,19 @@ def playlists():
 		return jsonify({'result': 'error',
 						'message': 'No playlists'}), 404
 	
-	# Convert list of sqlite3.Row objects to list of dicts for json, removing disk paths
-	folders = [{key: row[key] for key in row.keys() if key != 'folder_path'} for row in folders]
+	# Convert list of sqlite3.Row objects to dict of dicts indexed by order
+	# added to DB, removing folder path
+	folders = {index: {key: row[key] for key in row.keys() if key != 'folder_path'} for index, row in enumerate(folders)}
 	
 	return jsonify({'result': 'ok',
 					'data': folders})
 
-@blueprint.route('/playlist/<int:folder_id>')
+@blueprint.route('/playlist/<int:folder_id>', defaults = {
+				 'sort_by': 'playlist_index', 'sort_direction': 'desc'})
+@blueprint.route('/playlist/<int:folder_id>/<string:sort_by>/<string:sort_direction>')
 @login_required('guest', api = True)
-def playlist(folder_id):
+@csrf_protect
+def playlist(folder_id, sort_by, sort_direction):
 	"""List videos in a playlist"""
 	try:
 		params = get_params()
@@ -656,8 +718,7 @@ def playlist(folder_id):
 						'message': 'Failed to get params'})
 	
 	try:
-		# todo: add sort
-		videos = list_videos(folder_id)
+		videos = list_videos(folder_id, sort_by, sort_direction)
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to get playlist: ' + str(e))
 		return jsonify({'result': 'error',
@@ -672,26 +733,25 @@ def playlist(folder_id):
 		return jsonify({'result': 'error',
 						'message': 'Playlist does not exist'}), 404
 	
-	# Convert list of sqlite3.Row objects to list of dicts for json, removing filenames
-	videos = [{key: row[key] for key in row.keys() if key != 'filename'} for row in videos]
+	# Convert list of sqlite3.Row objects to dict of dicts indexed by sort order
+	videos = {index: {key: row[key] for key in row.keys()} for index, row in enumerate(videos)}
 	
-	for video in videos:
+	for video in videos.values():
 		# Format duration
-		video.update((key, format_duration(value)) for key, value in video.items() if key == 'duration' and value is not None)
-		# Generate thumbnail URL
-		#video['thumbnail'] = params['web_path'] + html.escape(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
-		# Path portion needs spaces escaping too
-		video['thumbnail'] = params['web_path'] + urllib.parse.quote(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
-	
-	# Todo: default sort if not provided, return available sorts if position/playlist_index/modification_time (in order) in videos[0] if len(videos) > 0, accept sort param
-	# Can then remove sort keys here (or just return them as extra from list_videos)
-	# Todo: start_at, max_results (maybe from params)
+		if video['duration'] is not None:
+			video['duration'] = format_duration(video['duration'])
+		# Generate thumbnail URL (escape spaces, HTML chars in directory and filename)
+		if video['thumbnail'] is not None:
+			video['thumbnail'] = params['web_path']+ urllib.parse.quote(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
+		# Remove filename, folder path
+		del(video['filename'], video['folder_path'])
 	
 	return jsonify({'result': 'ok',
 					'data': videos})
 
 @blueprint.route('/video/<int:video_id>')
 @login_required('guest', api = True)
+@csrf_protect
 def video(video_id):
 	"""Get a single video with its web path and metadata"""
 	try:

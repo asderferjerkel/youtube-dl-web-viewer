@@ -1,5 +1,5 @@
 # notes
-todo.txt
+design/
 # paths and secrets, users will copy template from -dist
 config.py
 app/flaskapp.wsgi

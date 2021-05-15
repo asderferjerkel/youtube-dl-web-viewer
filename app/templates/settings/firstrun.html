@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from 'macros.html' import render_field %}
+{% from 'macros.j2' import render_field %}
 
 {% block content %}
 	<div class="full-width">
@@ -7,14 +7,12 @@
 		
 		<p>Create a user to protect your settings and maintenance tasks. You can add more users later.</p>
 		
-		<div class="grid-form">
-			<form method="POST" action="{{ url_for('settings.first_run') }}">
-				{{ form.csrf_token }}
-				{{ render_field(form.username) }}
-				{{ render_field(form.password) }}
-				{{ render_field(form.repeat) }}
-				<input name="submit" type="submit" value="Create account">
-			</form>
-		</div>
+		<form class="grid-form" method="POST" action="{{ url_for('settings.first_run') }}">
+			{{ form.csrf_token }}
+			{{ render_field(form.username) }}
+			{{ render_field(form.password) }}
+			{{ render_field(form.repeat) }}
+			<input name="submit" type="submit" value="Create account">
+		</form>
 	</div>
 {% endblock %}

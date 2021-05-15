@@ -4,6 +4,8 @@ import sys
 from flask import Flask
 from flask_wtf.csrf import CSRFProtect
 
+import datetime
+
 def create_app():
 	app = Flask(__name__)
 	
@@ -11,16 +13,36 @@ def create_app():
 	# Copy config.py-dist to config.py to override
 	app.config.from_mapping(
 		SECRET_KEY = 'dev',
+		PERMANENT_SESSION_LIFETIME = datetime.timedelta(days=93), # Sessions default to 3 months
 		DATABASE = 'data.sqlite',
 		VIDEO_EXTENSIONS = {
 			'.mp4': 'video/mp4',
 			'.webm': 'video/webm',
-			'.mkv': 'video/webm',
+			'.mkv': 'video/x-matroska',
 			'.flv': 'video/x-flv'
 			},
-		THUMBNAIL_EXTENSIONS = ('.webp', '.avif', '.jpg', '.jpeg', '.png', '.gif'),
+		THUMBNAIL_EXTENSIONS = {
+			'.webp': 'image/webp',
+			'.avif': 'image/avif',
+			'.jpg': 'image.jpeg',
+			'.jpeg': 'image/jpeg',
+			'.png': 'image/png',
+			'.gif': 'image/gif'
+			},
 		METADATA_EXTENSION = '.info.json',
-		DATABASE_LOG_LEVEL = logging.DEBUG
+		SORT_COLUMNS = {
+			'playlist_index': 'Playlist',
+			'position': 'File #',
+			'sort_title': 'Title',
+			'filename': 'Filename',
+			'upload_date': 'Uploaded',
+			'modification_time': 'Downloaded',
+			'view_count': 'Views',
+			'average_rating': 'Rating',
+			'duration': 'Duration'
+			},
+		DATABASE_LOG_LEVEL = logging.DEBUG,
+		WTF_CSRF_TIME_LIMIT = None # CSRF tokens expire with session
 	)
 	
 	# Get user config if it exists

@@ -3,39 +3,44 @@
 {% block content %}
 	<section class="main">
 		<div id="player" class="player">
-			<video controls autoplay>
+			<video controls autoplay playsinline>
 				<source>
 			</video>
-			<button class="play-manual hidden">
-				<img class="hover" src="{{ url_for('static', filename = 'play-hover.svg') }}">
-				<img src="{{ url_for('static', filename = 'play.svg') }}">
+			<div class="overlay placeholder">
+				{{ render_sprite('bongo') }}
+				<div>Select a video</div>
+			</div>
+			<button class="overlay play-manual hidden" aria-label="Play video">
+				{{ render_sprite('play-fg', 'play-fg') }}
+				{{ render_sprite('play-hover', 'play-hover') }}
+				{{ render_sprite('play-bg', 'play-bg invert') }}
 			</button>
 		</div>
 		
-		<div id="info" class="info-container hidden">
+		<div id="info" class="info-container full-height hidden">
 			<div class="info">
-				<p class="title"></p>
+				<div class="title"></div>
 				<a class="uploader"></a>
 				<div class="views">
 					<span class="views-value"></span>
 					<span>views</span>
 				</div>
 				<div class="rating">
-					<img class="stars-filled" src="{{ url_for('static', filename = 'stars-filled.svg') }}">
-					<img class="stars-empty" src="{{ url_for('static', filename = 'stars-empty.svg') }}">
+					{{ render_sprite('stars-filled', 'stars-filled') }}
+					{{ render_sprite('stars-empty', 'stars-empty') }}
 					<div class="rating-value"></div>
 				</div>
 				<div class="date">
-					<div class="meta-label date-type"></div>
-					<div class="date-value"></div>
+					<span class="date-type">Uploaded</span>
+					<span class="date-value"></span>
 				</div>
 				<div class="format">
 					<div class="meta-label resolution-fps"></div>
 					<div class="meta-label codec"></div>
 				</div>
 				<a class="link" target="_blank">
-					<div class="original-link">pic (img)</div>
-					<div class="meta-label">View original</div>
+					{{ render_sprite('original') }}
+					<span class="meta-label">View original</span>
 				</a>
 				<div class="description-container">
 					<div class="description"></div>
@@ -45,35 +50,82 @@
 					<div class="categories"></div>
 				</div>
 			</div>
-			<div class="show-more-less">
+			<div class="show-more hidden">
 				<a class="meta-label more-link">Show more</a>
-				<a class="meta-label less-link hidden">Show less</a>
+				<a class="meta-label less-link">Show less</a>
 			</div>
 		</div>
 	</section>
 	
 	<section class="sidebar">
-		<ul id="playlists" class="list playlists">
+		<div id="controls" class="controls">
+			<div class="playback-controls">
+				<button class="previous">
+					{{ render_sprite('previous') }}
+				</button>
+				<button class="next">
+					{{ render_sprite('next') }}
+				</button>
+				<button class="autoplay toggle{{ ' enabled' if display_prefs.autoplay }}">
+					{{ render_sprite('autoplay') }}
+				</button>
+				<button class="shuffle toggle{{ ' enabled' if display_prefs.shuffle }}">
+					{{ render_sprite('shuffle') }}
+				</button>
+			</div>
+			<div class="playlist-controls">
+				<div class="select-container">
+					<select class="sort-by">
+						<option value="" disabled selected>Sort</option>
+					{% for column, friendly_name in sort_columns.items() %}
+						<option value="{{ column }}">{{ friendly_name }}</option>
+					{% endfor %}
+					</select>
+					<div class="select-arrow">
+						{{ render_sprite('show-more') }}
+					</div>
+				</div>
+				<button class="asc{{ ' hidden' if display_prefs.sort_direction == 'desc' }}">
+					{{ render_sprite('asc') }}
+				</button>
+				<button class="desc{{ ' hidden' if display_prefs.sort_direction == 'asc' }}">
+					{{ render_sprite('desc') }}
+				</button>
+			</div>
+		</div>
+		<div class="list-container playlists">
+			<ol id="playlists" class="list">
 			{% if playlists %}
 				{% for playlist in playlists %}
-					<li class="playlist" data-playlist="{{ playlist.id }}">
-						<div class="count">
-							<div class="number">{{ playlist.video_count }}</div>
-							<div class="caption">videos</div>
-						</div>
-						<div class="name">{{ playlist.folder_name }}</div>
-					</li>
+				<li class="playlist" data-playlist="{{ playlist.id }}">
+					<div class="count">
+						<div class="number">{{ playlist.video_count }}</div>
+						<div class="caption">videos</div>
+					</div>
+					<div class="name">{{ playlist.folder_name }}</div>
+				</li>
 				{% endfor %}
+			{% else %}
+				<div class="placeholder">No playlists</div>
 			{% endif %}
-		</ul>
-
-		<ul id="videos" class="list videos"></ul>
+			</ol>
+		</div>
+		
+		<div class="list-container videos">
+			<ol id="videos" class="list">
+			{% if playlists %}
+				<div class="placeholder">Select a playlist</div>
+			{% else %}
+				<div class="placeholder">No videos</div>
+			{% endif %}
+			</ol>
+		</div>
 	</section>
 
 	<script>
-		var video_id = {{ video if video else 'null' }};
-		var api_available = {{ 'true' if api_available else 'false' }};
-		var last_refreshed = "{{ last_refreshed }}";
+		let apiAvailable = {{ 'true' if api_available else 'false' }};
+		let loadItem = {{ load_item | tojson }};
+		let displayPrefs = {{ display_prefs | tojson }};
 	</script>
 	<script src="{{ url_for('static', filename = 'video.js') }}"></script>
 {% endblock %}

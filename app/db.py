@@ -109,7 +109,7 @@ def init():
 	if g.user is not None:
 		# Logged in, allow if admin
 		if not g.user['is_admin']:
-			flash('Only admin users can recreate the database')
+			flash('Only admin users can recreate the database', 'warn')
 			return redirect(url_for('index.index'))
 		
 		message = 'Detected an existing database. Initialising will clear all data including users and settings, but will not remove video files. Are you sure?'
@@ -123,10 +123,10 @@ def init():
 			pass
 		else:
 			if params['setup_complete'] == 0:
-				flash('Setup incomplete, create a user first')
+				flash('Setup incomplete: Create a user first.', 'warn')
 				return redirect(url_for('settings.first_run'))
 			
-			flash('Database already exists. Log in as an admin user or manually delete the database file to proceed.')
+			flash('Database already exists. Log in as an admin user or manually delete the database file to proceed.', 'warn')
 			return redirect(url_for('auth.login'))
 		
 		message = 'Creating a blank database.'
@@ -136,11 +136,11 @@ def init():
 		try:
 			create_db()
 		except FileNotFoundError as err:
-			flash('Database schema not found: ' + str(err.filename))
+			flash('Database schema not found: ' + str(err.filename), 'error')
 		except PermissionError as err:
-			flash('Could not access database file: ' + str(err.filename))
+			flash('Could not access database file: ' + str(err.filename), 'error')
 		else:
-			flash('Database successfully initialised. You may now create an admin account.')
+			flash('Database successfully initialised. You may now create an admin account.', 'info')
 			return redirect(url_for('settings.first_run'))
 	
 	# Warn if development keys are being used
