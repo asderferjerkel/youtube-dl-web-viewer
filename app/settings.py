@@ -90,6 +90,9 @@ def general():
 	
 	# Update settings
 	settings_form = GeneralSettings()
+	# Default last and next refresh
+	last_refreshed = 'Never'
+	next_refresh = 'Refresh database once to enable autorefresh'
 	
 	if settings_form.validate_on_submit():
 		# Interval string to seconds
@@ -132,7 +135,7 @@ def general():
 			flash('Failed to update settings: ' + str(e), 'error')
 		else:
 			db.commit()
-			flash('Settings updated.')
+			flash('Settings updated.', 'info')
 			try:
 				params = get_params()
 			except sqlite3.OperationalError as e:
@@ -165,10 +168,7 @@ def general():
 			settings_form.metadata_source.default = metadata_source
 			
 			# Get database last and next refresh
-			if params['last_refreshed'] == 0:
-				last_refreshed = 'Never'
-				next_refresh = 'Refresh database once to enable autorefresh'
-			else:
+			if params['last_refreshed'] != 0:
 				last_refreshed = datetime.strftime(datetime.fromtimestamp(params['last_refreshed']), '%d/%m/%Y %H:%M') + ' UTC'
 				next_refresh = datetime.strftime(datetime.fromtimestamp(params['last_refreshed'] + params['refresh_interval']), '%d/%m/%Y %H:%M') + ' UTC'
 	

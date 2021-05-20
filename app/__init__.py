@@ -11,10 +11,11 @@ def create_app():
 	app = Flask(__name__, instance_relative_config = True)
 	
 	# Default config
-	# Copy config.py-dist to config.py to override
+	# Copy config.py-dist to instance/config.py to override
 	app.config.from_mapping(
 		SECRET_KEY = 'dev',
 		PERMANENT_SESSION_LIFETIME = datetime.timedelta(days = 93), # Sessions default to 3 months
+		WTF_CSRF_TIME_LIMIT = None, # CSRF tokens expire with session
 		DATABASE = 'data.sqlite',
 		VIDEO_EXTENSIONS = {
 			'.mp4': 'video/mp4',
@@ -42,8 +43,7 @@ def create_app():
 			'average_rating': 'Rating',
 			'duration': 'Duration'
 			},
-		DATABASE_LOG_LEVEL = logging.DEBUG,
-		WTF_CSRF_TIME_LIMIT = None # CSRF tokens expire with session
+		DATABASE_LOG_LEVEL = logging.DEBUG
 	)
 	
 	# Get user config if it exists
@@ -56,6 +56,12 @@ def create_app():
 		format = '%(asctime)s %(levelname)s: %(message)s',
 		datefmt = '%Y-%m-%d %H:%M:%S'
 	)
+	
+	# Create instance folder
+	try:
+		os.makedirs(app.instance_path)
+	except OSError as e:
+		print('Could not create instance folder: ' + str(e))
 	
 	# CSRF protection
 	csrf = CSRFProtect()

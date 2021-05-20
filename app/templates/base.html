@@ -288,11 +288,9 @@
 						<div class="message {{ category }}">
 							<div class="level">{{ render_sprite(category) }}</div>
 							<div class="content">{{ message }}</div>
-							<div class="controls">
-								<button class="close" aria-label="Dismiss">
-									{{ render_sprite('close') }}
-								</button>
-							</div>
+							<button class="close" aria-label="Dismiss">
+								{{ render_sprite('close') }}
+							</button>
 						</div>
 					{% endfor %}
 				{% endif %}

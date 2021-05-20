@@ -1,0 +1,62 @@
+# Config for youtube-dl-web-viewer
+# Copy config.py-dist to instance/config.py to use
+# Missing values will fall back to defaults from app/__init__.py
+
+import os
+import datetime
+from flask import current_app
+
+# Secret key: set this to something random to protect your sessions
+SECRET_KEY = 'dev'
+
+#######################################################
+# Most stuff below this line can be left as default
+#######################################################
+
+# Session lifetime: defaults to 3 months
+PERMANENT_SESSION_LIFETIME = datetime.timedelta(days=93)
+# CSRF token lifetime: defaults to expire with session
+WTF_CSRF_TIME_LIMIT = None
+
+# Database path: will be created on first run
+DATABASE = os.path.join(current_app.instance_path, 'data.sqlite')
+
+# Video extensions: scanner will look for videos with these extensions
+# (MIME types are used for embedding)
+VIDEO_EXTENSIONS = {
+	'.mp4': 'video/mp4',
+	'.webm': 'video/webm',
+	'.mkv': 'video/x-matroska',
+	'.flv': 'video/x-flv'
+	}
+
+# Thumbnail extensions: scanner will look for thumbnails with these extensions
+# (MIME types are used for embedding)
+THUMBNAIL_EXTENSIONS = {
+	'.webp': 'image/webp',
+	'.avif': 'image/avif',
+	'.jpg': 'image.jpeg',
+	'.jpeg': 'image/jpeg',
+	'.png': 'image/png',
+	'.gif': 'image/gif'
+	}
+
+# Metadata extension: scanner will look for metadata files with this extension
+METADATA_EXTENSION = '.info.json'
+
+# Sort columns: web interface offers these columns to sort playlists by
+# (see videos table in app/create_db.sql for more)
+SORT_COLUMNS = {
+	'playlist_index': 'Playlist',
+	'position': 'File #',
+	'sort_title': 'Title',
+	'filename': 'Filename',
+	'upload_date': 'Uploaded',
+	'modification_time': 'Downloaded',
+	'view_count': 'Views',
+	'average_rating': 'Rating',
+	'duration': 'Duration'
+	}
+
+# Log level: will log events this level or higher to the database (logging.NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL)
+DATABASE_LOG_LEVEL = logging.DEBUG

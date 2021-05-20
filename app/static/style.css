@@ -320,7 +320,7 @@ table {
 		/* See .notifications for colours */
 		.messages .message {
 			display: grid;
-			grid-template-columns: [level] minmax(0, 2rem) [content] 1fr [controls] auto;
+			grid-template-columns: [level] minmax(0, 2rem) [content] 1fr [close] auto;
 			align-items: center;
 			column-gap: 1rem;
 			padding: 0.5rem 1rem;
@@ -331,29 +331,28 @@ table {
 			margin-top: 0.5rem;
 		}
 		
-			.messages .message .level {
+			.messages .level {
 				grid-column: level;
 				
 				align-self: top;
 			}
 
-			.messages .message .content {
+			.messages .content {
 				grid-column: content;
 			}
 
-			.messages .message .controls {
-				grid-column: controls;
-			}
-
-				.messages .message .close {
-					width: 2rem;
-					height: 2rem;
-					cursor: pointer;
-				}
+			.messages .close {
+				grid-column: close;
 				
-					.messages .message .sprite {
-						width: 100%;
-					}
+				width: 2rem;
+				height: 2rem;
+				cursor: pointer;
+				background: none;
+			}
+			
+				.messages .sprite {
+					width: 100%;
+				}
 
 	.main {
 		grid-column: main-left / main-right;
@@ -483,7 +482,7 @@ table {
 				background-repeat: no-repeat;
 			}
 			
-			.info {
+			.info-container .info {
 				display: grid;
 				grid-template-columns: repeat(5, 1fr);
 				grid-template-rows: auto;
@@ -579,7 +578,6 @@ table {
 					grid-area: desc;
 					
 					display: grid;
-					overflow: hidden;
 					/* minmax(0, 1fr) prevents blowout from long description lines */
 					grid-template-columns: repeat(2, auto minmax(0, 1fr));
 					grid-template-rows: min-content;
@@ -593,6 +591,7 @@ table {
 				
 				.info-container:not(.full-height) .description-container {
 					/* Overflow and fade when not full height */
+					overflow: hidden;
 					max-height: 4.75rem; /* ~fits in a 1920x1080 16:9 viewport */
 					-webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
 					mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
