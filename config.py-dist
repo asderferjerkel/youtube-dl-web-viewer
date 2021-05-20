@@ -2,9 +2,8 @@
 # Copy config.py-dist to instance/config.py to use
 # Missing values will fall back to defaults from app/__init__.py
 
-import os
+import logging
 import datetime
-from flask import current_app
 
 # Secret key: set this to something random to protect your sessions
 SECRET_KEY = 'dev'

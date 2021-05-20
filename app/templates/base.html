@@ -23,7 +23,7 @@
 			};
 				
 			const csrfToken = "{{ csrf_token() }}";
-			const apiUrl = "/api/";
+			const baseUrl = "{{ url_for('index.index') }}";
 			
 			document.addEventListener("DOMContentLoaded", (event) => {
 				// Hide message on click
@@ -158,7 +158,7 @@
 			// loadJSON("playlist", 1) => api_url/playlist/1
 			async function loadJSON(...params) {
 				const endpoint = params.join("/");
-				const response = await fetch(apiUrl + endpoint, {
+				const response = await fetch(baseUrl + "api/" + endpoint, {
 					headers: {
 						"X-CSRFToken": csrfToken
 					}

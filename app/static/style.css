@@ -126,7 +126,7 @@ table {
 		z-index: -1;
 		margin-top: -0.2rem;
 		
-		background-image: url('/static/horizontal-1.svg');
+		background-image: url('horizontal-1.svg');
 		background-size: 100% 0.5rem;
 		background-position: 0 0;
 		background-repeat: no-repeat;
@@ -437,10 +437,10 @@ table {
 					margin: var(--margin);
 					
 					background-image:
-						url('/static/horizontal-5.svg'),
-						url('/static/vertical-5.svg'),
-						url('/static/horizontal-6.svg'),
-						url('/static/vertical-6.svg');
+						url('horizontal-5.svg'),
+						url('vertical-5.svg'),
+						url('horizontal-6.svg'),
+						url('vertical-6.svg');
 					background-size:
 						100% var(--border-width),
 						var(--border-width) 100%,
@@ -476,7 +476,7 @@ table {
 				top: 0;
 				z-index: -1;
 				
-				background-image: url('/static/vertical-7.svg');
+				background-image: url('vertical-7.svg');
 				background-size: 0.5rem calc(100% - 1.5rem);
 				background-position: 0.5rem 1rem;
 				background-repeat: no-repeat;
@@ -836,10 +836,10 @@ table {
 		
 			.playlists::before {
 				background-image:
-					url('/static/horizontal-1.svg'),
-					url('/static/vertical-1.svg'),
-					url('/static/horizontal-2.svg'),
-					url('/static/vertical-2.svg');
+					url('horizontal-1.svg'),
+					url('vertical-1.svg'),
+					url('horizontal-2.svg'),
+					url('vertical-2.svg');
 			}
 		
 		.videos {
@@ -852,10 +852,10 @@ table {
 			
 			.videos::before {
 				background-image:
-					url('/static/horizontal-3.svg'),
-					url('/static/vertical-3.svg'),
-					url('/static/horizontal-4.svg'),
-					url('/static/vertical-4.svg');
+					url('horizontal-3.svg'),
+					url('vertical-3.svg'),
+					url('horizontal-4.svg'),
+					url('vertical-4.svg');
 			}
 	
 			.list {

@@ -230,7 +230,7 @@ def refresh_db(rescan = False):
 						else:
 							folder_name = folder.name
 							if params['replace_underscores']:
-								folder_name = folder_name.replace(' _ ', ' - ').replace('_', '')
+								folder_name = folder_name.replace(' _ ', ' - ').replace('_', ' ')
 						# Store path as relative to basepath
 						folder_path = str(folder_relative)
 						# All videos are unseen

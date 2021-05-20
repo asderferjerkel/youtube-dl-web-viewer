@@ -249,7 +249,7 @@ async function loadPlaylist(playlistID, addHistory = true) {
 		window.history[addHistory ? "pushState" : "replaceState"](
 				{"type": "playlist", "id": playlistID},
 				"", // title
-				"/p/" + playlistID);
+				baseUrl + "p/" + playlistID);
 	}
 	if (playlist.length === 0) {
 		// Empty playlist, replace with placeholder
@@ -346,7 +346,7 @@ async function loadVideo(videoID, addHistory = true) {
 	window.history[addHistory ? "pushState" : "replaceState"](
 			{"type": "video", "id": videoID},
 			"", // title
-			"/v/" + videoID);
+			baseUrl + "v/" + videoID);
 	// Browsers don't support history.pushState title so set directly
 	document.title = current.video.title + titleSuffix;
 	displayVideo(current.video);
