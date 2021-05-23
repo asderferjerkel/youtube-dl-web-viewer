@@ -587,7 +587,7 @@ def get_video(id):
 
 @blueprint.route('/refresh')
 @login_required('user', api = True)
-# CSRF protect refresh/rescan as only realistically DOSable endpoint
+# CSRF protect refresh/rescan as only realistically DOSable endpoints
 @csrf_protect
 def refresh():
 	"""Scan only new files for videos"""

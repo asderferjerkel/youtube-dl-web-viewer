@@ -567,7 +567,6 @@ function checkBasicAuth() {
 			};
 			
 			xhr.onload = function() {
-				console.log(this.status);
 				if (this.status !== 401) {
 					// Auth succeeded or not required
 					if (this.status !== 200) {
@@ -596,7 +595,7 @@ const playManual = playerContainer.querySelector(".play-manual");
 function playVideo() {
 	// Play video
 	player.play()
-	.then(function() {
+	.then(() => {
 		// Hide manual play button if present
 		playManual.classList.add("hidden");
 		// Set up mediaSession for media notification

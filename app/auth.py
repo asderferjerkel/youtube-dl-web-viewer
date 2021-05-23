@@ -172,7 +172,14 @@ def login():
 				return redirect(url_for('auth.login'))
 
 		# Successful login
+		# Get original URL from session before it's cleared
+		next_url = None
+		if session.get('next_url'):
+			next_url = session.get('next_url')
+		# Clear session, log in and redirect to original URL or index
 		login_user(user['id'])
+		if next_url is not None:
+			return redirect(next_url)
 		return redirect(url_for('index.index'))
 	
 	return render_template('login.html', title = 'Login', form = form)
@@ -184,7 +191,6 @@ def logout():
 		flash('Logged out', 'info')
 	else:
 		flash('Not logged in', 'warn')
-	
 	return redirect(url_for('auth.login'))
 
 def login_required(user_class = 'user', api = False):
@@ -195,14 +201,14 @@ def login_required(user_class = 'user', api = False):
 	"""
 	def decorator(view):
 		@functools.wraps(view)
-		def wrapped_view(**kwargs):
+		def wrapped_view(*args, **kwargs):
 			if g.user is not None:
 				# Logged in
 				if (user_class == 'guest' or
 						user_class == 'user' or
 						(user_class == 'admin' and g.user['is_admin'])):
 					# User has correct permissions
-					return view(**kwargs)
+					return view(*args, **kwargs)
 				
 				# User is not an admin
 				if api:
@@ -230,14 +236,15 @@ def login_required(user_class = 'user', api = False):
 			
 			if user_class == 'guest' and params['guests_can_view']:
 				# Guests allowed
-				return view(**kwargs)
+				return view(*args, **kwargs)
 			
 			# Guests disallowed
 			flash('You must be logged in to view this page.', 'warn')
 			if api:
 				return jsonify({'status': 'error',
 								'message': 'Unauthorised'}), 403
+			# Store original URL in session to redirect after login
+			session['next_url'] = request.url
 			return redirect(url_for('auth.login'))
-		
 		return wrapped_view
 	return decorator
