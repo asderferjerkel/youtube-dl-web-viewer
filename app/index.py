@@ -67,7 +67,7 @@ def index(item_type, item_id):
 			# Logged in users store display prefs per session
 			display_prefs = session['display_prefs']
 	
-	return render_template('index.html', playlists = playlists, load_item = load_item, api_available = api_available, display_prefs = display_prefs, sort_columns = current_app.config['SORT_COLUMNS'])
+	return render_template('index.html', playlists = playlists, load_item = load_item, api_available = api_available, display_prefs = display_prefs, web_path = params['web_path'], sort_columns = current_app.config['SORT_COLUMNS'])
 
 @blueprint.route('/log', methods=('GET', 'POST'))
 @login_required('admin')

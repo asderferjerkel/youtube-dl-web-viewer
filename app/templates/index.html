@@ -125,6 +125,7 @@
 		let apiAvailable = {{ 'true' if api_available else 'false' }};
 		let loadItem = {{ load_item | tojson }};
 		let displayPrefs = {{ display_prefs | tojson }};
+		let webPath = {{ web_path }};
 	</script>
 	<script src="{{ url_for('static', filename = 'video.js') }}"></script>
 {% endblock %}

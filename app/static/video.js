@@ -237,26 +237,33 @@ function displayFolders(folders) {
 
 // Load and display a playlist by its ID
 async function loadPlaylist(playlistID, addHistory = true) {
-	let playlist = await loadJSON("playlist", playlistID,
-								  displayPrefs.sort_by, displayPrefs.sort_direction);
-	current.playlist.length = 0;
-	// Sort playlist by key (play order) and create (ordered) array from values
-	Object.keys(playlist.data).sort().forEach(key => current.playlist.push(playlist.data[key]));
-	if (current.video === undefined) {
-		// Only update page URL if no video loaded
-		window.history[addHistory ? "pushState" : "replaceState"](
-				{"type": "playlist", "id": playlistID},
-				"", // title
-				baseUrl + "p/" + playlistID);
-	}
-	if (playlist.length === 0) {
-		// Empty playlist, replace with placeholder
-		unloadCurrent("playlist");
-	} else {
-		current.playlist.id = playlistID;
-		displayPlaylist(current.playlist);
-	}
-}
+	checkBasicAuth().then(() => {
+		let playlist = await loadJSON("playlist", playlistID,
+									  displayPrefs.sort_by,
+									  displayPrefs.sort_direction);
+		current.playlist.length = 0;
+		// Sort playlist by play order and create (ordered) array from values
+		Object.keys(playlist.data).sort().forEach(
+			key => current.playlist.push(playlist.data[key]));
+		if (current.video === undefined) {
+			// Only update page URL if no video loaded
+			window.history[addHistory ? "pushState" : "replaceState"](
+					{"type": "playlist", "id": playlistID},
+					"", // title
+					baseUrl + "p/" + playlistID);
+		}
+		if (playlist.length === 0) {
+			// Empty playlist, replace with placeholder
+			unloadCurrent("playlist");
+		} else {
+			current.playlist.id = playlistID;
+			displayPlaylist(current.playlist);
+		}
+	}, () => {
+		// Basic auth failed
+		console.log("Not loading playlist");
+	});
+};
 
 function displayPlaylist(playlist) {
 	current.index = {};
@@ -326,28 +333,34 @@ function displayPlaylist(playlist) {
 	if (displayPrefs.shuffle) {
 		// Shuffle enabled, generate shuffled playlist
 		[current.shuffledPlaylist, current.shuffledIndex] = shufflePlaylist();
-	};
+	}
 	
-	if (current.video !== undefined && current.video.folder_id === current.playlist.id) {
+	if (current.video !== undefined &&
+		current.video.folder_id === current.playlist.id) {
 		// Current video is from this playlist, select it
 		selectItem("video", current.video.id);
 	}
-}
+};
 
 
 // Load, display and play a video by its ID
 // If addHistory = false, replace current instead of adding an emtry
 async function loadVideo(videoID, addHistory = true) {
-	let video = await loadJSON("video", videoID);
-	current.video = video.data;
-	// Update page URL
-	window.history[addHistory ? "pushState" : "replaceState"](
-			{"type": "video", "id": videoID},
-			"", // title
-			baseUrl + "v/" + videoID);
-	// Browsers don't support history.pushState title so set directly
-	document.title = current.video.title + titleSuffix;
-	displayVideo(current.video);
+	checkBasicAuth().then(() => {
+		let video = await loadJSON("video", videoID);
+		current.video = video.data;
+		// Update page URL
+		window.history[addHistory ? "pushState" : "replaceState"](
+				{"type": "video", "id": videoID},
+				"", // title
+				baseUrl + "v/" + videoID);
+		// Browsers don't support history.pushState title so set directly
+		document.title = current.video.title + titleSuffix;
+		displayVideo(current.video);
+	}, () => {
+		// Basic auth failed
+		console.log("Not loading video");
+	});
 }
 
 function displayVideo(video) {
@@ -495,7 +508,8 @@ function displayVideo(video) {
 	
 	// Resolution and/or fps (add suffixes and concat)
 	let height = (video.height !== null ? video.height + "p" : null);
-	let fps = (video.fps !== null ? Math.round(video.fps * 100) / 100 + "fps" : null);
+	let fps = (video.fps !== null
+			? Math.round(video.fps * 100) / 100 + "fps" : null);
 	let format = [height, fps].filter(Boolean).join(" ");
 	info.querySelector(".resolution-fps").textContent = format; // Empty if both missing
 	if (format !== "") {
@@ -538,7 +552,8 @@ function playVideo() {
 		// Set up mediaSession for media notification
 		if ("mediaSession" in navigator) {
 			let thumbnail = [];
-			if (current.video.thumbnail !== null && current.video.thumbnail_format !== null) {
+			if (current.video.thumbnail !== null &&
+				current.video.thumbnail_format !== null) {
 				thumbnail = [{
 					src: current.video.thumbnail,
 					sizes: '1920x1080', // hardcoded lol
@@ -548,7 +563,8 @@ function playVideo() {
 			
 			navigator.mediaSession.metadata = new MediaMetadata({
 				title: current.video.title,
-				artist: (current.video.uploader !== null ? current.video.uploader : 'ytdl-web'),
+				artist: (current.video.uploader !== null
+					  ? current.video.uploader : 'ytdl-web'),
 				album: current.video.folder_name,
 				artwork: thumbnail
 			});
@@ -569,13 +585,14 @@ function playVideo() {
 // Change to the next or previous video
 async function changeVideo(direction = "next") {
 	// Select normal or shuffled playlist depending on prefs
-	playlist = (displayPrefs.shuffle ? current.shuffledPlaylist : current.playlist);
+	playlist = (displayPrefs.shuffle
+			 ? current.shuffledPlaylist : current.playlist);
 	index = (displayPrefs.shuffle ? current.shuffledIndex : current.index);
 	if (current.video !== undefined) {
 		// Video currently loaded
 		let newIndex = (direction === "next"
-					  ? index[current.video.id] + 1
-					  : index[current.video.id] - 1);
+					 ? index[current.video.id] + 1
+					 : index[current.video.id] - 1);
 		if (playlist[newIndex] !== undefined) {
 			console.log("Playing " + direction + " video");
 			let newVideoID = playlist[newIndex].id;
@@ -613,10 +630,10 @@ async function changeVideo(direction = "next") {
 		// If shuffle enabled, will repeat previous shuffle order until
 		// reshuffled by toggling off & on or clicking a different video
 		console.log("Playing " + (direction === "next"
-							   ? 'first' : 'last') + " video");
+							   ? "first" : "last") + " video");
 		let newVideoID = (direction === "next"
-						? playlist[0].id
-						: playlist[playlist.length - 1].id);
+					   ? playlist[0].id
+					   : playlist[playlist.length - 1].id);
 		// Select video
 		selectItem("video", newVideoID);
 		// Load video
@@ -781,6 +798,52 @@ function selectItem(type = "playlist", itemID = null, element = null) {
 }
 
 
+// Check if the webserver hosting the video files and thumbnails requires
+// HTTP basic auth. If so, trigger login so the browser can cache credentials,
+// avoiding massive prompt spam when loading a playlist's thumbnails
+let basicAuthed = false;
+function checkBasicAuth() {
+	return new Promise(function(resolve, reject) {
+		if (basicAuthed) {
+			// Don't check again for this page load
+			resolve();
+		} else {
+			let xhr = new XMLHttpRequest();
+			// Succeeds without prompting if credentials are already cached
+			xhr.open("GET", webPath, true)
+			
+			function failedAuth(error) {
+				console.log("HTTP basic auth failed:", error);
+				addMessage(error, null, false, "error", null, "Try again?",
+						   checkBasicAuth);
+				reject();
+			};
+			
+			xhr.onload = function() {
+				console.log(this.status);
+				if (this.status !== 401) {
+					// Auth succeeded or not required
+					if (this.status !== 200) {
+						console.log("Unexpected response from video server, " +
+									"not unauthorised so assuming success:",
+									this.status, xhr.statusText);
+					}
+					basicAuthed = true;
+					resolve();
+				} else {
+					failedAuth("Video server requires a login, " +
+							   "but it was rejected.");
+				}
+			};
+			xhr.onerror = () => {
+				failedAuth("Could not connect to the video server.");
+			};
+			xhr.send();
+		}
+	});
+};
+
+
 // Toggle displaying full or clipped description
 // show = true: full-height description & "show less"
 // show = false: description overflows & "show more"
@@ -795,7 +858,8 @@ const showMore = infoContainer.querySelector(".show-more");
 function descriptionOverflow() {
 	if (!fullHeight) {
 		// Container height is limited, test overflow
-		if (descriptionContainer.offsetHeight < descriptionContainer.scrollHeight) {
+		if (descriptionContainer.offsetHeight <
+			descriptionContainer.scrollHeight) {
 			// Description overflows, show links
 			showMore.classList.remove("hidden");
 		} else {
@@ -829,9 +893,9 @@ async function updatePrefs(pref, value) {
 	} else if (pref === "sort_direction") {
 		// Show asc if now asc; desc if now desc
 		ascButton.classList[displayPrefs[pref] === "asc"
-						  ? "remove" : "add"]("hidden");
+						 ? "remove" : "add"]("hidden");
 		descButton.classList[displayPrefs[pref] === "desc"
-						  ? "remove" : "add"]("hidden");
+						 ? "remove" : "add"]("hidden");
 	};
 	
 	if (apiAvailable) {
@@ -845,7 +909,8 @@ async function updatePrefs(pref, value) {
 
 // Set up media notification controls
 function updatePositionState() {
-	if ("mediaSession" in navigator && "setPositionState" in navigator.mediaSession) {
+	if ("mediaSession" in navigator &&
+		"setPositionState" in navigator.mediaSession) {
 		navigator.mediaSession.setPositionState({
 			duration: player.duration,
 			playbackRate: player.playbackRate,
@@ -879,7 +944,8 @@ if ("mediaSession" in navigator) {
 	navigator.mediaSession.setActionHandler('seekforward', function(event) {
 		const skipTime = event.seekOffset || defaultSkipTime;
 		// Max skip to end of video
-		player.currentTime = Math.min(player.currentTime + skipTime, player.duration);
+		player.currentTime = Math.min(player.currentTime +
+									  skipTime, player.duration);
 	});
 	navigator.mediaSession.setActionHandler('seekbackward', function(event) {
 		const skipTime = event.seekOffset || defaultSkipTime;
@@ -892,7 +958,8 @@ if ("mediaSession" in navigator) {
 			unloadCurrent("video");
 		});
 	} catch(error) {
-		console.log("mediaSession action 'stop' not supported by this browser");
+		console.log("mediaSession action 'stop' " +
+					"not supported by this browser");
 	};
 	try { // Notification seek to (only recent browsers)
 		navigator.mediaSession.setActionHandler('seekto', function(event) {
@@ -904,6 +971,7 @@ if ("mediaSession" in navigator) {
 			updatePositionState();
 		});
 	} catch(error) {
-		console.log("mediaSession action 'seekto' not supported by this browser");
+		console.log("mediaSession action 'seekto' " +
+					"not supported by this browser");
 	};
-};
+}
