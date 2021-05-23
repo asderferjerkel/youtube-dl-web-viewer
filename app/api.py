@@ -682,7 +682,8 @@ def set_preference(pref, value):
 	
 	session['display_prefs'][pref] = value
 	return jsonify({'result': 'ok',
-					'message': 'Display preferences updated'})
+					'message': 'Display preferences updated',
+					'display_prefs': session['display_prefs']})
 
 @blueprint.route('/playlists')
 @login_required('guest', api = True)

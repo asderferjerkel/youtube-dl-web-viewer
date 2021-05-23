@@ -816,7 +816,7 @@ const shuffleButton = controls.querySelector(".shuffle");
 const sortSelect = controls.querySelector(".sort-by");
 const ascButton = controls.querySelector(".asc");
 const descButton = controls.querySelector(".desc");
-function updatePrefs(pref, value) {
+async function updatePrefs(pref, value) {
 	// Update for current page load
 	displayPrefs[pref] = value;
 	
@@ -836,7 +836,7 @@ function updatePrefs(pref, value) {
 	
 	if (apiAvailable) {
 		// Update for session
-		loadJSON("prefs", pref, value);
+		await loadJSON("prefs", pref, value);
 	} else {
 		console.log("Not logged in, preferences stored only for this page load");
 	}
