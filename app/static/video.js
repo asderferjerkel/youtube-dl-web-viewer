@@ -117,9 +117,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	function changeSort(value, isDirection = false) {
 		// Pref to change
 		let pref = (isDirection ? "sort_direction" : "sort_by");
-		console.log("current prefs:", displayPrefs)
 		updatePrefs(pref, value);
-		console.log("new prefs:", displayPrefs)
 		if (current.playlist.id !== undefined) {
 			// Playlist loaded, reload it
 			loadPlaylist(current.playlist.id);
@@ -239,7 +237,6 @@ function displayFolders(folders) {
 
 // Load and display a playlist by its ID
 async function loadPlaylist(playlistID, addHistory = true) {
-	console.log("loading list sorted by:", displayPrefs)
 	let playlist = await loadJSON("playlist", playlistID,
 								  displayPrefs.sort_by, displayPrefs.sort_direction);
 	current.playlist.length = 0;
@@ -784,7 +781,7 @@ function selectItem(type = "playlist", itemID = null, element = null) {
 }
 
 
-// Toggle description full-height or overflow
+// Toggle displaying full or clipped description
 // show = true: full-height description & "show less"
 // show = false: description overflows & "show more"
 let fullHeight = true; // Page load default
@@ -793,7 +790,7 @@ function fullDescription(show = true) {
 	infoContainer.classList[show ? "add" : "remove"]("full-height");
 }
 
-// Test description overflow to determine if "show more" and fade required
+// Show "show more" if description overflows container
 const showMore = infoContainer.querySelector(".show-more");
 function descriptionOverflow() {
 	if (!fullHeight) {
@@ -803,7 +800,6 @@ function descriptionOverflow() {
 			showMore.classList.remove("hidden");
 		} else {
 			// Description fits, hide fade and links
-			console.log("not overflowing");
 			fullDescription(true);
 			showMore.classList.add("hidden");
 		}
@@ -820,7 +816,7 @@ const shuffleButton = controls.querySelector(".shuffle");
 const sortSelect = controls.querySelector(".sort-by");
 const ascButton = controls.querySelector(".asc");
 const descButton = controls.querySelector(".desc");
-async function updatePrefs(pref, value) {
+function updatePrefs(pref, value) {
 	// Update for current page load
 	displayPrefs[pref] = value;
 	
