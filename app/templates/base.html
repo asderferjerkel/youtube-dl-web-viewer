@@ -27,16 +27,16 @@
 			
 			document.addEventListener("DOMContentLoaded", (event) => {
 				// Hide message on click
-				document.querySelectorAll(".flash").forEach(function(element) {
-					element.querySelector(".close")[0]
+				document.querySelectorAll(".flash").forEach(function(message) {
+					message.querySelector(".close")
 						   .addEventListener("click", () => {
-						element.classList.add("hidden");
+						message.classList.add("hidden");
 					});
 				});
 				
 				// Show/hide menu on small screens
 				document.querySelector(".toggle-menu button")
-						.addEventListener("click", (element) => {
+						.addEventListener("click", () => {
 					document.querySelector("header .navigation")
 							.classList.toggle("toggled");
 				});
