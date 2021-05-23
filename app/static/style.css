@@ -318,7 +318,7 @@ table {
 	}
 		
 		/* See .notifications for colours */
-		.messages .message {
+		.flash {
 			display: grid;
 			grid-template-columns: [level] minmax(0, 2rem) [content] 1fr [close] auto;
 			align-items: center;
@@ -327,21 +327,21 @@ table {
 			margin-bottom: 0.5rem;
 		}
 		
-		.messages .message:first-of-type {
+		.flash:first-of-type {
 			margin-top: 0.5rem;
 		}
 		
-			.messages .level {
+			.flash .level {
 				grid-column: level;
 				
 				align-self: top;
 			}
 
-			.messages .content {
+			.flash .content {
 				grid-column: content;
 			}
 
-			.messages .close {
+			.flash .close {
 				grid-column: close;
 				
 				width: 2rem;
@@ -350,7 +350,7 @@ table {
 				background: none;
 			}
 			
-				.messages .sprite {
+				.flash .sprite {
 					width: 100%;
 				}
 
@@ -674,7 +674,7 @@ table {
 				}
 				
 					.views, .format {
-						text-align: left;
+						/* text-align: left; */
 					}
 					
 					.format .meta-label {
@@ -752,7 +752,7 @@ table {
 					position: relative;
 					/* Vertical align with buttons */
 					top: -0.65rem;
-					margin-bottom: -0.65rem;
+					margin: 0 0.1rem -0.65rem;
 				}
 				
 					.controls .select-container::before {
@@ -777,7 +777,6 @@ table {
 						color: inherit;
 					}
 					
-					
 						.controls option {
 							/* Dropdown items */
 							font-family: inherit;
@@ -788,6 +787,13 @@ table {
 						.controls option[disabled] {
 							display: none; /* Hide placeholder from list */
 						}
+					
+					@media screen and (max-width: 400px) {
+						.controls select {
+							/* Avoid wrapping on most smaller phones */
+							font-size: 80%;
+						}
+					}
 					
 					.controls .select-arrow {
 						/* Custom dropdown arrow */
