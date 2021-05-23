@@ -50,8 +50,8 @@ SORT_COLUMNS = {
 	'sort_title': 'Title',
 	'position': 'Filename #',
 	'filename': 'Filename A-Z',
-	'upload_date': 'Upload date',
-	'modification_time': 'Download date',
+	'upload_date': 'Uploaded',
+	'modification_time': 'Downloaded',
 	'view_count': 'Views',
 	'average_rating': 'Rating',
 	'duration': 'Duration'
