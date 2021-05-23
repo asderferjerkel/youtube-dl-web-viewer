@@ -244,7 +244,7 @@ async function loadPlaylist(playlistID, addHistory = true) {
 									  displayPrefs.sort_direction);
 		current.playlist.length = 0;
 		// Sort playlist by play order and create (ordered) array from values
-		Object.keys(playlist.data).sort().forEach(
+		Object.keys(await playlist.data).sort().forEach(
 			key => current.playlist.push(playlist.data[key]));
 		if (current.video === undefined) {
 			// Only update page URL if no video loaded
@@ -351,7 +351,7 @@ async function loadVideo(videoID, addHistory = true) {
 	checkBasicAuth()
 	.then(async () => {
 		let video = await loadJSON("video", videoID);
-		current.video = video.data;
+		current.video = await video.data;
 		// Update page URL
 		window.history[addHistory ? "pushState" : "replaceState"](
 				{"type": "video", "id": videoID},

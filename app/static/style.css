@@ -87,12 +87,12 @@ a {
 button, input[type="submit"] {
 	color: var(--foreground);
 	background-color: var(--hover);
-	font-size: 90%;
+	font-size: 0.9rem;
 }
 
 dt {
 	margin: 1rem 0 0.5rem 1rem;
-	font-size: 110%;
+	font-size: 1.1rem;
 }
 
 dd {
@@ -569,6 +569,10 @@ table {
 					text-align: center;
 				}
 				
+					.views-value {
+						font-size: 1.2rem;
+					}
+				
 				.meta-label {
 					font-size: 0.75rem;
 					line-height: 1rem;
@@ -701,7 +705,7 @@ table {
 		.controls {
 			display: grid;
 			grid-template-columns: [playback] auto 1fr [playlist] auto;
-			
+			align-items: end;
 			margin: 0.25rem;
 		}
 		
@@ -791,7 +795,7 @@ table {
 					@media screen and (max-width: 400px) {
 						.controls select {
 							/* Avoid wrapping on most smaller phones */
-							font-size: 80%;
+							font-size: 0.8rem;
 						}
 					}
 					
@@ -812,7 +816,8 @@ table {
 			--border-width: 0.5rem;
 			
 			position: relative;
-			padding: calc(var(--border-offset) + var(--border-width)); /* Space for border */
+			 /* Space for border + a little breathing room */
+			padding: calc(var(--border-offset) + var(--border-width) + 0.1rem);
 			overflow: hidden;
 		}
 		
@@ -1040,7 +1045,7 @@ table {
 		.grid-form .field-help, .grid-form .errors {
 			grid-column: span 2;
 			
-			font-size: 80%;
+			font-size: 0.8rem;
 			margin: 0.25rem 0 1rem 0.5rem;
 		}
 	
@@ -1132,7 +1137,7 @@ table {
 			padding: 0.5rem;
 			background-color: var(--hover);
 			color: var(--foreground);
-			font-size: 90%;
+			font-size: 0.9rem;
 		}
 		
 		.notification .close {
