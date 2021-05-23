@@ -34,11 +34,11 @@ def create_app():
 		METADATA_EXTENSION = '.info.json',
 		SORT_COLUMNS = {
 			'playlist_index': 'Playlist',
-			'position': 'File #',
 			'sort_title': 'Title',
-			'filename': 'Filename',
-			'upload_date': 'Uploaded',
-			'modification_time': 'Downloaded',
+			'position': 'Filename #',
+			'filename': 'Filename A-Z',
+			'upload_date': 'Upload date',
+			'modification_time': 'Download date',
 			'view_count': 'Views',
 			'average_rating': 'Rating',
 			'duration': 'Duration'
