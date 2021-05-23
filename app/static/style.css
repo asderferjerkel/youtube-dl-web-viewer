@@ -634,6 +634,10 @@ table {
 				margin-left: -2rem; /* Offset left/right padding difference on container */
 			}
 			
+				.show-more a {
+					cursor: pointer;
+				}
+			
 				.full-height .less-link, .more-link {
 					/* Display "show more" by default;
 					   "show less" when full height */
@@ -843,7 +847,7 @@ table {
 			}
 		
 		.videos {
-			max-height: 70vh;
+			max-height: 65vh;
 			/* Fit at least one item */
 			min-height: calc(((var(--thumb-width) / 16) * 9) +
 						2 * (var(--border-offset) +

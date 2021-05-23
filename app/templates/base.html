@@ -208,8 +208,9 @@
 					task.message = (task.message === null
 								   ? "Database update complete" : task.message);
 					// Offer playlist refresh if on video page
+					const action = (typeof(loadFolders) === "function" ? loadFolders : null);
 					addMessage(task.message, "status", false, "info", null,
-							   "Refresh playlists", loadFolders);
+							   "Refresh playlists", action);
 					// Return to lazily checking status
 					lazyTimer = setTimeout(lazyUpdateStatus, delay.checkStatus);
 				} else if (task.status == -1) {

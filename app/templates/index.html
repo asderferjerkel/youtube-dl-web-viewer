@@ -76,9 +76,8 @@
 			<div class="playlist-controls">
 				<div class="select-container">
 					<select class="sort-by">
-						<option value="" disabled selected>Sort</option>
 					{% for column, friendly_name in sort_columns.items() %}
-						<option value="{{ column }}">{{ friendly_name }}</option>
+						<option value="{{ column }}"{{ ' selected' if display_prefs.sort_by == column }}>{{ friendly_name }}</option>
 					{% endfor %}
 					</select>
 					<div class="select-arrow">

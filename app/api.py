@@ -29,7 +29,8 @@ def init_app(app):
 		try:
 			set_task(status = 0)
 		except sqlite3.OperationalError as e:
-			current_app.logger.warning('Failed to clear task status')
+			# Task table could be missing if db not initialised
+			current_app.logger.debug('Could not clear task status: ' + str(e))
 
 def csrf_protect(view):
 	@functools.wraps(view)
@@ -564,7 +565,7 @@ def list_videos(folder_id, sort_by = 'playlist_index', sort_direction = 'desc'):
 	
 	sort_string = ' ORDER BY videos.' + sort_by + direction_string
 	if sort_by not in ['playlist_index', 'position', 'title']:
-		# Secondary sorts for all but above in case of duplicate/missing values
+		# Secondary sorts for all but the above in case of dupe/missing values
 		sort_string += (', videos.playlist_index' + direction_string +
 					    ', videos.position' + direction_string)
 	# All sorts finally fall back to ID 
@@ -583,6 +584,7 @@ def get_video(id):
 
 @blueprint.route('/refresh')
 @login_required('user', api = True)
+# CSRF protect refresh/rescan as only realistically DOSable endpoint
 @csrf_protect
 def refresh():
 	"""Scan only new files for videos"""
@@ -611,7 +613,6 @@ def rescan():
 
 @blueprint.route('/status')
 @login_required('user', api = True)
-@csrf_protect
 def status():
 	"""Check the status of the currently-running task"""
 	try:
@@ -638,7 +639,6 @@ def status():
 
 @blueprint.route('/dismiss')
 @login_required('user', api = True)
-@csrf_protect
 def dismiss():
 	"""
 	Dismiss the last error from appearing in the UI
@@ -655,7 +655,6 @@ def dismiss():
 
 @blueprint.route('/prefs/<string:pref>/<string:value>')
 @login_required('user', api = True)
-@csrf_protect
 def set_preference(pref, value):
 	"""Save a display preference in the logged-in user's session"""
 	allowed_prefs = {'autoplay': ['0', '1'],
@@ -684,7 +683,6 @@ def set_preference(pref, value):
 
 @blueprint.route('/playlists')
 @login_required('guest', api = True)
-@csrf_protect
 def playlists():
 	"""List playlist IDs, names and video counts"""
 	try:
@@ -710,7 +708,6 @@ def playlists():
 				 'sort_by': 'playlist_index', 'sort_direction': 'desc'})
 @blueprint.route('/playlist/<int:folder_id>/<string:sort_by>/<string:sort_direction>')
 @login_required('guest', api = True)
-@csrf_protect
 def playlist(folder_id, sort_by, sort_direction):
 	"""List videos in a playlist"""
 	try:
@@ -754,7 +751,6 @@ def playlist(folder_id, sort_by, sort_direction):
 
 @blueprint.route('/video/<int:video_id>')
 @login_required('guest', api = True)
-@csrf_protect
 def video(video_id):
 	"""Get a single video with its web path and metadata"""
 	try:
