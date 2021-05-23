@@ -543,8 +543,11 @@ def add_video(video):
 	db.commit()
 
 def list_folders():
-	"""Returns a sorted list of folders with their ID, name, path and video count"""
-	return get_db().execute('SELECT * FROM folders ORDER BY id ASC').fetchall()
+	"""
+	Returns a list of folders with their ID, name, path and video count
+	Sorts by folder path for tree then name order
+	"""
+	return get_db().execute('SELECT * FROM folders ORDER BY folder_path ASC').fetchall()
 
 def list_videos(folder_id, sort_by = 'playlist_index', sort_direction = 'desc'):
 	"""Returns a sorted list of videos by folder ID"""

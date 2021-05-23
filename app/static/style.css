@@ -765,9 +765,8 @@ table {
 					}
 					
 					.controls select {
-						width: 4rem;
 						height: 2.5rem;
-						padding: 0 0.5rem;
+						padding: 0 1.75rem 0 0.5rem; /* Leave space for custom arrow */
 						appearance: none; /* Hide default arrow */
 						/* Override browser defaults */
 						font-size: 1rem;

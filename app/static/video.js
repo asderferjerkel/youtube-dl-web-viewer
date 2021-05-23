@@ -117,7 +117,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	function changeSort(value, isDirection = false) {
 		// Pref to change
 		let pref = (isDirection ? "sort_direction" : "sort_by");
+		console.log("current prefs:", displayPrefs)
 		updatePrefs(pref, value);
+		console.log("new prefs:", displayPrefs)
 		if (current.playlist.id !== undefined) {
 			// Playlist loaded, reload it
 			loadPlaylist(current.playlist.id);
@@ -239,6 +241,7 @@ function displayFolders(folders) {
 
 // Load and display a playlist by its ID
 async function loadPlaylist(playlistID, addHistory = true) {
+	console.log("loading list sorted by:", displayPrefs)
 	let playlist = await loadJSON("playlist", playlistID,
 								  displayPrefs.sort_by, displayPrefs.sort_direction);
 	current.playlist.length = 0;
@@ -749,35 +752,6 @@ function shufflePlaylist(videoID = null) {
 	
 	return [shuffledPlaylist, shuffledIndex];
 }
-/**
-	/ shuffle current.playlist + generate current.index
-	
-	- when shuffle toggled
-	  - get current pref
-	    - let shuffle = (displayPrefs.shuffle ? false : true)
-		  - ie. if on, turn off; if off, turn on
-	  - updatePrefs("shuffle", shuffle)
-	  - update button dot
-	  - if current.playlist, shuffle it now
-		- if (shuffle), current.shuffledIndex = shufflePlaylist();
-		- else, current.shuffledIndex = undefined;
-	
-	/ on playlist display, after creating index
-	  / if (displayPrefs.shuffle), current.shuffledIndex = shufflePlaylist();
-	  / else current.shuffledIndex = undefined;
-	
-	/ on unload playlist/folders
-	  / current.shuffledIndex = undefined;
-	
-	/ on changeVideo
-	  / will need to scroll to the new vid ofc (but selectItem ID returns element so ok)
-	    X get rid of selectItem by element (check)
-	  / next/prev video
-	    / switch out current.index for index, then define depending on shuffle:
-		  / index = (displayPrefs.shuffle ? current.shuffledIndex : current.index);
-	  / first video
-	    / shuffledPlaylist[0] etc
-*/
 
 
 // Mark or unmark a list item (video or playlist) as selected
@@ -842,16 +816,14 @@ function descriptionOverflow() {
 // Set display preferences for the current session (if logged in) and page
 // pref = ["autoplay", "shuffle"]: value = [true, false]
 // pref = "sort_direction": value = ["asc", "desc"]
-// pref = "sort_by": value = ["playlist_index", "position", "title",
-//   "upload_date", "modification_time", "view_count", "average_rating",
-//	 "duration"]
+// pref = "sort_by": allowed values from app config
 const autoplayButton = controls.querySelector(".autoplay");
 const shuffleButton = controls.querySelector(".shuffle");
 const sortSelect = controls.querySelector(".sort-by");
 const ascButton = controls.querySelector(".asc");
 const descButton = controls.querySelector(".desc");
 async function updatePrefs(pref, value) {
-	// Update 
+	// Update for current page load
 	displayPrefs[pref] = value;
 	
 	if (pref === "autoplay" || pref === "shuffle") {
@@ -869,6 +841,7 @@ async function updatePrefs(pref, value) {
 	};
 	
 	if (apiAvailable) {
+		// Update for session
 		loadJSON("prefs", pref, value);
 	} else {
 		console.log("Not logged in, preferences stored only for this page load");
