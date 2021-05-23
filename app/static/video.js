@@ -265,7 +265,7 @@ async function loadPlaylist(playlistID, addHistory = true) {
 		// Basic auth failed
 		console.log("Not loading playlist");
 	});
-};
+}
 
 function displayPlaylist(playlist) {
 	current.index = {};
@@ -342,7 +342,7 @@ function displayPlaylist(playlist) {
 		// Current video is from this playlist, select it
 		selectItem("video", current.video.id);
 	}
-};
+}
 
 
 // Load, display and play a video by its ID
@@ -619,7 +619,8 @@ function playVideo() {
 				artwork: thumbnail
 			});
 		}
-	}).catch(function(error) {
+	})
+	.catch(error => {
 		// Playback failed (probably user hasn't interacted with page)
 		console.log("Autoplay not allowed:", error);
 		// Set thumbnail as placeholder
