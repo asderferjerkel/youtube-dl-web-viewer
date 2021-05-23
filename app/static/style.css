@@ -756,12 +756,13 @@ table {
 				}
 				
 					.controls .select-container::before {
-						/* Background placeholder */
+						/* Placeholder for background */
 						content: "";
 						position: absolute;
 						width: 100%;
 						height: 100%;
 						z-index: -2;
+						background-color: var(--selected);
 					}
 					
 					.controls select {
@@ -781,7 +782,7 @@ table {
 							/* Dropdown items */
 							font-family: inherit;
 							background: var(--background); /* inherit doesn't work here */
-							color: var(--color);		   /*        ¯\_(ツ)_/¯ 			*/
+							color: var(--foreground);	   /*        ¯\_(ツ)_/¯ 			*/
 						}
 						
 						.controls option[disabled] {
@@ -794,7 +795,7 @@ table {
 						width: 1rem;
 						height: 100%;
 						top: 0.1rem;
-						right: 0.3rem;
+						right: 0.4rem;
 						/* Under select so doesn't block click, above background */
 						z-index: -1;
 					}
