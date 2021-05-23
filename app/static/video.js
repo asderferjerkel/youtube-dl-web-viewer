@@ -129,8 +129,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Sort by changed
 	sortSelect.addEventListener("change", function() {
 		changeSort(this.value);
-		// Reset to placeholder
-		sortSelect.selectedIndex = 0;
 	});
 	// Sort asc clicked (-> desc)
 	ascButton.addEventListener("click", () => {
