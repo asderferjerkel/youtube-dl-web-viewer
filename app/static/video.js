@@ -237,7 +237,8 @@ function displayFolders(folders) {
 
 // Load and display a playlist by its ID
 async function loadPlaylist(playlistID, addHistory = true) {
-	checkBasicAuth().then(() => {
+	checkBasicAuth()
+	.then(async () => {
 		let playlist = await loadJSON("playlist", playlistID,
 									  displayPrefs.sort_by,
 									  displayPrefs.sort_direction);
@@ -259,7 +260,8 @@ async function loadPlaylist(playlistID, addHistory = true) {
 			current.playlist.id = playlistID;
 			displayPlaylist(current.playlist);
 		}
-	}, () => {
+	})
+	.catch(error => {
 		// Basic auth failed
 		console.log("Not loading playlist");
 	});
@@ -346,7 +348,8 @@ function displayPlaylist(playlist) {
 // Load, display and play a video by its ID
 // If addHistory = false, replace current instead of adding an emtry
 async function loadVideo(videoID, addHistory = true) {
-	checkBasicAuth().then(() => {
+	checkBasicAuth()
+	.then(async () => {
 		let video = await loadJSON("video", videoID);
 		current.video = video.data;
 		// Update page URL
@@ -357,7 +360,8 @@ async function loadVideo(videoID, addHistory = true) {
 		// Browsers don't support history.pushState title so set directly
 		document.title = current.video.title + titleSuffix;
 		displayVideo(current.video);
-	}, () => {
+	})
+	.catch(error => {
 		// Basic auth failed
 		console.log("Not loading video");
 	});
@@ -539,6 +543,52 @@ function displayVideo(video) {
 	// Play video
 	playVideo();
 }
+
+
+// Check if the webserver hosting the video files and thumbnails requires
+// HTTP basic auth. If so, trigger login so the browser can cache credentials,
+// avoiding massive prompt spam when loading a playlist's thumbnails
+let basicAuthed = false;
+function checkBasicAuth() {
+	return new Promise(function(resolve, reject) {
+		if (basicAuthed) {
+			// Don't check again for this page load
+			resolve();
+		} else {
+			let xhr = new XMLHttpRequest();
+			// Succeeds without prompting if credentials are already cached
+			xhr.open("GET", webPath, true)
+			
+			function failedAuth(error) {
+				console.log("HTTP basic auth failed:", error);
+				addMessage(error, null, false, "error", null, "Try again?",
+						   checkBasicAuth);
+				reject();
+			};
+			
+			xhr.onload = function() {
+				console.log(this.status);
+				if (this.status !== 401) {
+					// Auth succeeded or not required
+					if (this.status !== 200) {
+						console.log("Unexpected response from video server, " +
+									"not unauthorised so assuming success:",
+									this.status, xhr.statusText);
+					}
+					basicAuthed = true;
+					resolve();
+				} else {
+					failedAuth("Video server requires a login, " +
+							   "but it was rejected.");
+				}
+			};
+			xhr.onerror = () => {
+				failedAuth("Could not connect to the video server.");
+			};
+			xhr.send();
+		}
+	});
+};
 
 
 // Play the currently-loaded video
@@ -796,52 +846,6 @@ function selectItem(type = "playlist", itemID = null, element = null) {
 		}
 	}
 }
-
-
-// Check if the webserver hosting the video files and thumbnails requires
-// HTTP basic auth. If so, trigger login so the browser can cache credentials,
-// avoiding massive prompt spam when loading a playlist's thumbnails
-let basicAuthed = false;
-function checkBasicAuth() {
-	return new Promise(function(resolve, reject) {
-		if (basicAuthed) {
-			// Don't check again for this page load
-			resolve();
-		} else {
-			let xhr = new XMLHttpRequest();
-			// Succeeds without prompting if credentials are already cached
-			xhr.open("GET", webPath, true)
-			
-			function failedAuth(error) {
-				console.log("HTTP basic auth failed:", error);
-				addMessage(error, null, false, "error", null, "Try again?",
-						   checkBasicAuth);
-				reject();
-			};
-			
-			xhr.onload = function() {
-				console.log(this.status);
-				if (this.status !== 401) {
-					// Auth succeeded or not required
-					if (this.status !== 200) {
-						console.log("Unexpected response from video server, " +
-									"not unauthorised so assuming success:",
-									this.status, xhr.statusText);
-					}
-					basicAuthed = true;
-					resolve();
-				} else {
-					failedAuth("Video server requires a login, " +
-							   "but it was rejected.");
-				}
-			};
-			xhr.onerror = () => {
-				failedAuth("Could not connect to the video server.");
-			};
-			xhr.send();
-		}
-	});
-};
 
 
 // Toggle displaying full or clipped description
