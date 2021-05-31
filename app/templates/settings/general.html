@@ -13,13 +13,16 @@
 			{{ render_field(form.web_path) }}
 			<div class="field-help">Also thumbnails and subtitles.</div>
 			{{ render_field(form.metadata_source) }}
-			<div class="field-help">json falls back to filename if missing, requires database rescan to update existing video metadata</div>
+			<div class="field-help">Use .info.json files for metadata if present. Requires a database rescan to update existing videos if changed.</div>
 			{{ render_field(form.filename_format) }}
 			<div class="field-help">(leave blank to disable) See below for help</div>
 			{{ render_field(form.filename_delimiter) }}
 			<div class="field-help">(optional) Include spaces, see below for help</div>
+			{{ render_field(form.generate_thumbs) }}
+			<div class="field-help">Generate small thumbnails for playlists<br>
+			<em>{{ thumbnail_status }}</em></div>
 			{{ render_field(form.replace_underscores) }}
-			<div class="field-help">Looks nicer imo if you use youtube-dl's <pre>--restrict-filenames</pre> option</div>
+			<div class="field-help">Playlists and videos, looks nicer imo if you use youtube-dl's <pre>--restrict-filenames</pre> option</div>
 			{{ render_field(form.guests_can_view) }}
 			<div class="field-help">If checked, videos are publicly viewable. Does not protect video URLs. Guests cannot access settings or refresh/rescan the database.</div>
 			<input name="submit" type="submit" value="Save settings">
@@ -55,12 +58,12 @@
 			<dd>To disable automatic updates from the web interface, set the <strong>database refresh interval</strong> to 0.</dd>
 			<dt>Paths</dt>
 			<dd>You need to provide two paths: a folder path on disk which will be scanned for videos, and a base URL where they can be accessed over the web.</dd>
-			<dd>Disk path: e.g. <pre>/home/user/videos/</pre>. If the path contains subfolders, they will be treated as separate playlists. Thumbnails and metadata .json files, if they exist, will be searched for in the same folder as their associated videos and matched by filename. Nesting is currently not supported, so any nested subfolders will just appear as separate playlists.</dd>
-			<dd>Web path: e.g. <pre>https://example.com/videos/</pre>. This script does not host the video files themselves, so you should set up your webserver separately to serve your disk path. It combines the web path with the subfolder and filename to form URLs for the videos and thumbnails. For example, if the <pre>/home/user/videos</pre> directory contained a video at <pre>playlist 1/video.mp4</pre> and your web path was <pre>https://example.com/content/</pre>, the URL formed would be <pre>https://example.com/content/playlist%201/video.mp4</pre>. The simplest way to serve your disk path to the web is to create a symlink in your public_html folder, for example:</dd>
+			<dd>Disk path: e.g. <pre>/home/user/videos/</pre>. Subfolders will be treated as separate playlists. Thumbnails and metadata .json files, if they exist, will be matched by filename in the same folder as their videos.</dd>
+			<dd>Web path: e.g. <pre>https://example.com/videos/</pre>. youtube-dl-web-viewer does not serve the video files themselves, so you should set up your webserver separately to serve your disk path. It combines the web path with the subfolder and filename to form URLs for the videos and thumbnails. For example, if the <pre>/home/user/videos</pre> directory contained a video at <pre>playlist 1/video.mp4</pre> and your web path was <pre>https://example.com/content/</pre>, the URL formed would be <pre>https://example.com/content/playlist%201/video.mp4</pre>. The simplest way to serve your disk path to the web is to create a symlink in your public_html folder, for example:</dd>
 			<dd><pre>ln -s /home/user/videos /var/www/public_html/videos</pre></dd>
 			<dd>Bear in mind the user your webserver is running as will require read access to the path and its contents to be able to serve videos.</dd>
-			<dt>Metadata source</dt>
-			<dd>By default, youtube-dl-web-viewer will search for a .json file matching each video's filename to collect its metadata, falling back to the filename if it is missing. You can change <strong>json</strong> to <strong>filename</strong> to only use the filename for metadata.</dd>
+			<dt>Metadata</dt>
+			<dd>By default, youtube-dl-web-viewer will search for an .info.json file matching each video's filename to collect its metadata, falling back to the filename if it is missing. Unchecking <strong>scan for metadata files</strong> will only use the filename for metadata.</dd>
 			<dd>json metadata files are saved if you use youtube-dl's <pre>--write-info-json</pre> option, but if you don't collect them or some videos are missing them, you can optionally specify the <strong>video filename format</strong> to get metadata from there instead. The script recognises the following parameters:</dd>
 			<dd>
 				<ul>
@@ -71,7 +74,18 @@
 					<li><pre>{skip}</pre>: Skip a parameter not recognised by this script</li>
 				</ul>
 			</dd>
-			<dd>Use the <strong>video filename delimiter</strong> to specify how your parameters are separated, including spaces (e.g. "<pre> - </pre>"). Since video titles could contain your delimiter string, if you include <pre>{title}</pre> in your format template, the parser will first try to match the other parameters to the left and right of the title, leaving what remains as the video title. This is likely to break with some filename formats, so I recommend you download .json metadata along with your videos!</dd>
+			<dd>Use the <strong>video filename delimiter</strong> to specify how your parameters are separated, including spaces (e.g. "<pre> - </pre>"). Since video titles could contain this delimeter, if you include <pre>{title}</pre> in your format template, the parser will first try to match all the other parameters, leaving what remains as the video title. This is likely to break with some filename formats, so I recommend you download .info.json files along with your videos!</dd>
+			<dd>To skip collecting metadata entirely (videos will be titled by filename only), uncheck <strong>scan for metadata files</strong> and delete the contents of <strong>filename format</strong></dd>
+			<dt>Thumbnails</dt>
+			<dd>youtube-dl's <pre>--write-thumb</pre> option downloads a thumbnail with each video. We use it as the player's placeholder if present, but it's too high resolution to use in playlists without slowing down the browser. If <strong>generate small thumbnails for playlists</strong> is checked, youtube-dl-web-viewer will create and store smaller versions in the database for playlist display. To do this requires the optional Python module <pre>Pillow</pre>, which you can install in your virtual environment with <pre>easy_install Pillow</pre>. Before installing, ensure you have installed your OS's development libraries for <strong>zlib</strong>, <strong>jpeg</strong> and (optionally) <strong>webp</strong>:</dd>
+			<dd>
+				<ul>
+					<li>Debian (and similar Linux): <pre>sudo apt install zlib1g-dev libjpeg8-dev libwebp-dev</pre></li>
+					<li>macOS: <pre>brew install libjpeg webp</pre></li>
+					<li>Cygwin: install the <pre>zlib-devel</pre>, <pre>libjpeg-devel</pre> and <pre>libwebp-devel</pre> packages
+				</ul>
+			</dd>
+			<dd>If the available thumbnail formats above show as "None" after installing Pillow and restarting the server, the installer may not have been able to find the system's libraries in your virtual environment, for example if you installed with <pre>pip install Pillow</pre>. Uninstall with <pre>pip uninstall Pillow</pre> and try the <pre>easy_install</pre> method, or see <a href="https://pillow.readthedocs.io/en/stable/installation.html#external-libraries" target="_blank">Pillow's documentation</a> for more info.</dd>
 		</dl>
 	</div>
 	

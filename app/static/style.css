@@ -704,8 +704,9 @@ table {
 		
 		.controls {
 			display: grid;
+			/* Empty space between so controls aligned to left & right */
 			grid-template-columns: [playback] auto 1fr [playlist] auto;
-			align-items: end;
+			row-gap: 0.5rem; /* When wrapped on small screens */
 			margin: 0.25rem;
 		}
 		
@@ -715,6 +716,13 @@ table {
 			
 			.playlist-controls {
 				grid-column: playlist;
+			}
+			
+			@media screen and (max-width: 400px) {
+				.playback-controls {
+					/* Push playlist controls to new row */
+					grid-column: span 3;
+				}
 			}
 		
 				.controls button {
@@ -791,13 +799,6 @@ table {
 						.controls option[disabled] {
 							display: none; /* Hide placeholder from list */
 						}
-					
-					@media screen and (max-width: 400px) {
-						.controls select {
-							/* Avoid wrapping on most smaller phones */
-							font-size: 0.8rem;
-						}
-					}
 					
 					.controls .select-arrow {
 						/* Custom dropdown arrow */
@@ -908,7 +909,7 @@ table {
 					}
 					
 					.list .name {
-						margin: 0 10px;
+						margin: 0 0.75rem;
 					}
 			
 				.playlist {
@@ -985,19 +986,19 @@ table {
 		column-gap: 0.5rem;
 	}
 	
-	.header-container, .messages {
-		/* No gap between header and video unless messages */
-		margin-bottom: 0;
-	}
-	
-	.main {
-		margin-top: 0;
-	}
-	
-	.main, .sidebar {
-		/* Video, info, sidebar extend to edges */
-		grid-column: page-left / span page-right;
-	}
+		.header-container, .messages {
+			/* No gap between header and video unless messages */
+			margin-bottom: 0;
+		}
+		
+		.main {
+			margin-top: 0;
+		}
+		
+		.main, .sidebar {
+			/* Video, info, sidebar extend to edges */
+			grid-column: page-left / span page-right;
+		}
 }
 
 .full-width {
@@ -1061,27 +1062,27 @@ table {
 		margin: 1rem auto;
 	}
 	
-	/* One-column form on small screens */
-	.grid-form label {
-		grid-column: span 2;
+		/* One-column form on small screens */
+		.grid-form label {
+			grid-column: span 2;
+			
+			margin: 0.5rem 0;
+		}
 		
-		margin: 0.5rem 0;
-	}
-	
-	.grid-form input, .grid-form select, .grid-form button, .grid-form .field {
-		grid-column: span 2;
+		.grid-form input, .grid-form select, .grid-form button, .grid-form .field {
+			grid-column: span 2;
+			
+			height: 2rem;
+			margin: 0.25rem 0.5rem;
+		}
 		
-		height: 2rem;
-		margin: 0.25rem 0.5rem;
-	}
-	
-	.grid-form input[type="checkbox"] {
-		margin-left: 1rem;
-	}
-	
-	.grid-form .field-help, .grid-form .errors {
-		margin-bottom: 0.5rem;
-	}
+		.grid-form input[type="checkbox"] {
+			margin-left: 1rem;
+		}
+		
+		.grid-form .field-help, .grid-form .errors {
+			margin-bottom: 0.5rem;
+		}
 }
 
 .notifications {
@@ -1107,29 +1108,23 @@ table {
 
 	.notification {
 		display: grid;
-		grid-template-columns: minmax(0, 2rem) 1fr; /* Level, content */
-		align-items: center;
+		/* Level, content, close */
+		grid-template-columns: minmax(1rem, 2rem) 1fr minmax(1rem, 2rem);
+		align-items: start; /* Vertical align top */
 		column-gap: 1rem;
 		row-gap: 0; /* Override inherit from parent */
 		
-		position: relative; /* Buttons absolute to parent */
 		width: min(90vw, 20rem);
 		height: auto;
 		margin: 1rem 0;
 		padding: 1rem;
 		background: var(--background);
 		box-shadow: 4px 4px 0 var(--foreground);
-		/*word-wrap: break-word;
-		hyphens: auto;*/
 		transition: opacity 0.5s;
 	}
 	
-		.notification .level {
-			align-self: start; /* Vertical align top */
-		}
-		
-		.notification .sprite {
-			width: 100%;
+		.notification .content {
+			align-self: center; /* Vertical align centre */
 		}
 		
 		.notification .action {
@@ -1141,18 +1136,19 @@ table {
 		}
 		
 		.notification .close {
-			position: absolute;
-			width: 2rem;
-			height: 2rem;
-			top: 0.75rem;
-			right: 0.75rem;
 			background: none;
 			cursor: pointer;
 		}
 		
+			.notification .sprite {
+				width: 100%;
+			}
+
 @media screen and (max-width: 860px) {
 	.notifications {
-		bottom: 0; /* Bottom of viewport to not cover player */
+		/* Bottom of viewport to not cover player */
+		top: unset;
+		bottom: 0;
 	}
 }
 	

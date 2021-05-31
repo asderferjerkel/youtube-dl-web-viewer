@@ -14,6 +14,9 @@
 		<link rel="apple-touch-icon" href="{{ url_for('static', filename = 'apple-touch-icon.png') }}">
 		<link rel="stylesheet" href="{{ url_for('static', filename = 'style.css') }}">
 		<script>
+			const csrfToken = "{{ csrf_token() }}";
+			const baseUrl = "{{ url_for('index.index') }}";
+			
 			// Times in milliseconds
 			const delay = {
 				notificationFade: 5000, // Fade disappearing notifications after
@@ -22,9 +25,6 @@
 				refreshStatus: 3000 // Refresh running task status every
 			};
 				
-			const csrfToken = "{{ csrf_token() }}";
-			const baseUrl = "{{ url_for('index.index') }}";
-			
 			document.addEventListener("DOMContentLoaded", (event) => {
 				// Hide message on click
 				document.querySelectorAll(".flash").forEach(function(message) {
@@ -44,14 +44,16 @@
 			
 				
 			/**
-			 Add a notification
-			   message: Notification text
-			   id: Notification element ID to update (if exists) or set
-			   disappear = true: Fade out and remove after 5 seconds
-			   level: "info", "warn", "error" icon
-			   progress: [folder, of-folders, file, of-files]
-			   actionText: Action button label
-			   action, [args]: Run function(args) when button is clicked
+			Add a notification
+			  message: Notification text
+			  id: Notification element ID to update (if exists) or set
+			  disappear = true: Fade out and remove after 5 seconds
+			  level: "info", "warn", "error" icon
+			  progress: [folder, of-folders, file, of-files]
+			  actionText: Action button label
+			  action, [args]: Run action(args) when button is clicked
+			    If action = "link", will insert a link instead of a button
+				with text = actionText and href = args[0]
 			*/
 			function addMessage(message, id, disappear = false, level = "info",
 								progress, actionText, action, args = []) {
@@ -65,7 +67,6 @@
 					},
 					notification: document.getElementById("template-notification"),
 					progress: document.getElementById("template-progress"),
-					action: document.getElementById("template-action")
 				};
 				
 				// Get existing notification or null
@@ -83,13 +84,14 @@
 				}
 				
 				// info/warn/error icon
-				level = (template.levels[level] == null ? "info" : level)
-				let levelTemplate = template.levels[level].content
+				// Default if not recognised
+				levelClass = (template.levels[level] == null ? "info" : level)
+				let levelTemplate = template.levels[levelClass].content
 					.cloneNode(true);
 				notification.querySelector(".level")
 					.appendChild(levelTemplate);
 				// Add class for background colour
-				notification.classList.add(level);
+				notification.classList.add(levelClass);
 				
 				//// Notification content
 				let content = notification.querySelector(".content");
@@ -103,24 +105,26 @@
 								progressTemplate.querySelectorAll("span"));
 					progressTemplate.querySelectorAll("span").forEach(
 						(element, index) => {
-						console.log(element, index);
-						// Add array contents to folder, of-folders, file, of-files
+						// Fill folder, of-folders, file, of-files
 						element.textContent = progress[index];
 					});
 					content.appendChild(progressTemplate);
 				}
-				// Action button
+				// Action button/link
 				if (typeof(action) === "function") {
-					// Function exists on this page, add button
-					let actionTemplate = template.action.content
-						.cloneNode(true);
-					let actionButton = actionTemplate.querySelector("button")
+					let actionButton = document.createElement("button");
+					actionButton.className = "action";
 					actionButton.textContent = actionText;
 					actionButton.addEventListener("click", () => {
 						action(args);
 						closeNotification(notification);
 					});
-					content.appendChild(actionTemplate);
+					content.appendChild(actionButton);
+				} else if (action === "link") {
+					let actionLink = document.createElement("a");
+					actionLink.href = (args.length > 0 ? args[0] : "");
+					actionLink.textContent = actionText;
+					content.appendChild(actionLink);
 				}
 				
 				// Fade out and remove notification
@@ -159,10 +163,20 @@
 			}
 			
 			
-			// Load an API endpoint and return the json response
-			// loadJSON("playlist", 1) fetches api_url/playlist/1
+			/**
+			Load an API endpoint and return the json response
+			  GET:  loadJSON("playlist", 1) fetches <api_url>/playlist/1
+			  POST: loadJSON("POST", postData, "playlist", 1)
+			*/
 			async function loadJSON(...params) {
-				const endpoint = params.join("/");
+				let endpoint;
+				if (params.length > 2 && params[0] === "POST") {
+					// POST
+					endpoint = params.slice(2).join("/");
+				} else {
+					// GET
+					endpoint = params.join("/");
+				}
 				const response = await fetch(baseUrl + "api/" + endpoint, {
 					headers: {
 						"X-CSRFToken": csrfToken
@@ -209,7 +223,7 @@
 					timer = setTimeout(updateStatus, delay.refreshStatus);
 				} else if (task.status === 0) {
 					// Task complete/none running
-					// Generic message if blank
+					// Generic message if already cleared
 					task.message = (task.message === null
 								   ? "Database update complete" : task.message);
 					// Offer playlist refresh if on video page
@@ -221,14 +235,15 @@
 					lazyTimer = setTimeout(lazyUpdateStatus, delay.checkStatus);
 				} else if (task.status === -1) {
 					// Task error
-					addMessage(task.message, "status", false, "error");
+					addMessage(task.message, "status", false, "error", null,
+							   "Open error log", "link", [baseUrl + "log"]);
 					// Return to lazily checking status
 					lazyTimer = setTimeout(lazyUpdateStatus, delay.checkStatus);
 				} else {
-					let message = "Unexpected API response\n" +
-								  "See developer console for details";
-					addMessage(message, "status", false, "warning");
-					console.error("Unexpected API response: ", task)
+					console.error("Unexpected API response:", task)
+					addMessage("Unexpected API response!", "status", false,
+							   "warn", null, "Open error log", "link",
+							   [baseUrl + "log"]);
 					// Queue next update anyway
 					timer = setTimeout(updateStatus, delay.checkStatus);
 				}

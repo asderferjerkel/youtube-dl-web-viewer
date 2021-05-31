@@ -57,5 +57,23 @@ SORT_COLUMNS = {
 	'duration': 'Duration'
 	}
 
+# Thumbnail formats:
+#   'key':           Filetype string used to check for Pillow support
+#   'export_format': Filetype string used to export that format
+#   'priority':      Determines the order in which missing formats fall back to
+#                    others (higher priorities are preferred)
+THUMBNAIL_FORMATS = {
+	'jpg':  { 'export_format': 'JPEG',
+			  'priority': 0 },
+	'webp': { 'export_format': 'WEBP',
+			  'priority': 1 }
+	}
+
+# Thumbnail size: maximum width, height to generate playlist thumbnails
+THUMBNAIL_SIZE = 128, 72
+
+# Thumbnail quality: integer 1-95, used for jpg and webp exports
+THUMBNAIL_QUALITY = 70
+
 # Log level: will log events this level or higher to the database (logging.NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL)
 DATABASE_LOG_LEVEL = logging.DEBUG

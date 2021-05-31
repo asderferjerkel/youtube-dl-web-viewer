@@ -33,6 +33,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		// Load video without adding to history, wait for playlist ID
 		await loadVideo(videoID, false);
 		// Select playlist
+		// todo: note changed from current.video.folder_id
+		// update: changed back
 		selectItem("playlist", current.video.folder_id);
 		// Load playlist, select video
 		loadPlaylist(current.video.folder_id);
@@ -48,7 +50,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	}
 	
 	// Load from state when history navigated
-	window.addEventListener('popstate', (event) => {
+	window.addEventListener("popstate", (event) => {
 		if (event.state !== null) {
 			// todo: once added current.folder (done as current.playlist.id), if playlist hasn't changed between pages (current.folder = event.state.playlistID w/e), don't reload playlist, just mark selected appropriate vid
 			// treat video and playlist separately: load playlist if different, load video if exists; if no playlist loaded unload it, if no video loaded unload it
@@ -244,7 +246,7 @@ async function loadPlaylist(playlistID, addHistory = true) {
 									  displayPrefs.sort_direction);
 		current.playlist.length = 0;
 		// Sort playlist by play order and create (ordered) array from values
-		Object.keys(await playlist.data).sort().forEach(
+		Object.keys(playlist.data).sort().forEach(
 			key => current.playlist.push(playlist.data[key]));
 		if (current.video === undefined) {
 			// Only update page URL if no video loaded
@@ -351,7 +353,7 @@ async function loadVideo(videoID, addHistory = true) {
 	checkBasicAuth()
 	.then(async () => {
 		let video = await loadJSON("video", videoID);
-		current.video = await video.data;
+		current.video = video.data;
 		// Update page URL
 		window.history[addHistory ? "pushState" : "replaceState"](
 				{"type": "video", "id": videoID},
@@ -390,11 +392,13 @@ function displayVideo(video) {
 	// Hide info box until ready to avoid multiple reflow
 	infoContainer.classList.add("hidden");
 	
-	//// Add metadata
-	// Normal fields (metadata can be inserted directly):
-	//   key: json field
-	//   display: selector to hide if data missing
-	//   contents: selector to fill with data (if different from display)
+	/**
+	Add metadata
+	  Normal fields (metadata can be inserted directly):
+	    key: json field
+	    display: selector to hide if data missing
+	    contents: selector to fill with data (if different from display)
+	*/
 	let metadataFields = {
 		title: {
 			display: ".title" },
@@ -420,10 +424,12 @@ function displayVideo(video) {
 		}
 	};
 	
-	// List fields:
-	//   key: json array field
-	//   display: list of selectors to hide if data missing
-	//   contents: selector to fill with data
+	/**
+	List fields
+	  key: json array field
+	  display: list of selectors to hide if data missing
+	  contents: selector to fill with data
+	*/
 	let listFields = {
 		categories: {
 			display: [".categories-label", ".categories"],
@@ -437,7 +443,7 @@ function displayVideo(video) {
 		// Default empty and hide
 		let fieldData = "";
 		let fieldHidden = true;
-		if (Array.isArray(video[key]) && video[key].length !== 0) {
+		if (Array.isArray(video[key]) && video[key].length > 0) {
 			// List has items
 			// Remove invalid/empty items, comma-separate and show
 			fieldData = video[key].filter(Boolean).join(", ");
@@ -446,7 +452,7 @@ function displayVideo(video) {
 		
 		info.querySelector(field.contents).textContent = fieldData;
 		field.display.forEach(selector => {
-			info.querySelector(selector).classList[fieldHidden ? 'add' : 'remove']("hidden");
+			info.querySelector(selector).classList[fieldHidden ? "add" : "remove"]("hidden");
 		});
 	});
 	
@@ -476,14 +482,14 @@ function displayVideo(video) {
 	}
 	
 	/**
-	   Star rating
-	   Stars in image have defined widths and gaps, so we can calculate the
-	   inset to apply to ignore gaps and only clip stars:
-	   
-		0% 16 21 37 42 58 63 79 84 100%
-		|   | |   | |   | |   | |   |
+	Star rating
+	  Stars in image have defined widths and gaps, so we can calculate the
+	  inset to apply to ignore gaps and only clip stars:
+	  
+	  0% 16 21 37 42 58 63 79 84 100%
+	  |   | |   | |   | |   | |   |
 	
-	   e.g. 1.5 stars is 29% (71% inset)
+	  e.g. 1.5 stars is 29% (71% inset)
 	*/
 	if (video.average_rating !== null) {
 		let inset = Math.round((100 - ((video.average_rating * 16) + (Math.floor(video.average_rating) * 5))) * 10) / 10; // * 10, round, / 10 gives 1 decimal place
@@ -545,19 +551,24 @@ function displayVideo(video) {
 }
 
 
-// Check if the webserver hosting the video files and thumbnails requires
-// HTTP basic auth. If so, trigger login so the browser can cache credentials,
-// avoiding massive prompt spam when loading a playlist's thumbnails
+/**
+  Check if the webserver hosting the video files and thumbnails requires
+  HTTP basic auth. If so, trigger login so the browser can cache credentials,
+  avoiding massive prompt spam when loading a playlist's thumbnails
+*/
 let basicAuthed = false;
 function checkBasicAuth() {
 	return new Promise(function(resolve, reject) {
 		if (basicAuthed) {
-			// Don't check again for this page load
+			// Once authed, don't check again for this page load
 			resolve();
 		} else {
 			let xhr = new XMLHttpRequest();
 			// Succeeds without prompting if credentials are already cached
-			xhr.open("GET", webPath, true)
+			// Using xhr as fetch doesn't reliably cache for future requests:
+			// https://gist.github.com/ivermac/922def70ed9eaf83799b68ab1a587595
+			xhr.open("GET", webPath, true);
+			xhr.withCredentials = true;
 			
 			function failedAuth(error) {
 				console.log("HTTP basic auth failed:", error);
@@ -605,7 +616,7 @@ function playVideo() {
 				current.video.thumbnail_format !== null) {
 				thumbnail = [{
 					src: current.video.thumbnail,
-					sizes: '1920x1080', // hardcoded lol
+					sizes: "1920x1080", // hardcoded lol
 					type: current.video.thumbnail_format
 				}];
 			}
@@ -613,7 +624,7 @@ function playVideo() {
 			navigator.mediaSession.metadata = new MediaMetadata({
 				title: current.video.title,
 				artist: (current.video.uploader !== null
-					  ? current.video.uploader : 'ytdl-web'),
+					  ? current.video.uploader : "ytdl-web"),
 				album: current.video.folder_name,
 				artwork: thumbnail
 			});
@@ -664,7 +675,7 @@ async function changeVideo(direction = "next") {
 			// No playlist loaded
 			// todo: have an array of playlists. take element out of selectItem if not using it (+ shift a brace down i think)
 			// Select first playlist
-			let firstPlaylist = playlistList.querySelector('.playlist');
+			let firstPlaylist = playlistList.querySelector(".playlist");
 			if (firstPlaylist !== null) {
 				console.log("Loading first playlist");
 				// Select playlist
@@ -692,13 +703,15 @@ async function changeVideo(direction = "next") {
 }
 
 
-// Unload the current video, playlist or folder list
-// item = "video":	  Stop playback, unload source, replace with placeholder
-//					  Unsets current.video
-// item = "playlist": Unload playlist, replace with placeholder
-//					  Unsets current.playlist, current.index
-// item = "folders":  Unload folder list, replace with placeholder
-//					  Implies unloadCurrent("playlist")
+/**
+Unload the current video, playlist or folder list
+  item = "video":	 Stop playback, unload source, replace with placeholder
+					 Unsets current.video
+  item = "playlist": Unload playlist, replace with placeholder
+					 Unsets current.playlist, current.index
+  item = "folders":  Unload folder list, replace with placeholder
+					 Implies unloadCurrent("playlist")
+*/
 function unloadCurrent(item = "video") {
 	if (item === "video") {
 		// Remove poster
@@ -765,9 +778,11 @@ function unloadCurrent(item = "video") {
 }
 
 
-// Shuffles current playlist and index, starting from
-// videoID if supplied, or current video if loaded
-// Returns shuffledPlaylist and shuffledIndex
+/**
+Shuffles current playlist and index
+  Starts from videoID if supplied, or current video if loaded
+  Returns shuffledPlaylist and shuffledIndex
+*/
 function shufflePlaylist(videoID = null) {
 	// Clone current.playlist
 	let shuffledPlaylist = [...current.playlist];
@@ -816,10 +831,12 @@ function shufflePlaylist(videoID = null) {
 }
 
 
-// Mark or unmark a list item (video or playlist) as selected
-// Previously-selected item of type = ["playlist", "video"] will be unmarked
-// itemID or element supplied: item will be marked selected
-// itemID supplied: returns list item's element
+/**
+Mark or unmark a list item (video or playlist) as selected
+  Previously-selected item of type = ["playlist", "video"] will be unmarked
+  itemID or element supplied: item will be marked selected
+  itemID supplied: returns list item's element
+*/
 function selectItem(type = "playlist", itemID = null, element = null) {
 	let list = (type === "video" ? videoList : playlistList);
 	let attribute = (type === "video" ? "data-video" : "data-playlist");
@@ -848,9 +865,11 @@ function selectItem(type = "playlist", itemID = null, element = null) {
 }
 
 
-// Toggle displaying full or clipped description
-// show = true: full-height description & "show less"
-// show = false: description overflows & "show more"
+/**
+Toggle displaying full or clipped description
+  show = true: full-height description & "show less"
+  show = false: description overflows & "show more"
+*/
 let fullHeight = true; // Page load default
 function fullDescription(show = true) {
 	fullHeight = (show ? true : false);
@@ -875,36 +894,39 @@ function descriptionOverflow() {
 }
 
 
-// Set display preferences for the current session (if logged in) and page
-// pref = ["autoplay", "shuffle"]: value = [true, false]
-// pref = "sort_direction": value = ["asc", "desc"]
-// pref = "sort_by": allowed values from app config
+/**
+Set display preferences for the current session (if logged in) and page
+  pref = ["autoplay", "shuffle"]: value = [true, false]
+  pref = "sort_direction": value = ["asc", "desc"]
+  pref = "sort_by": allowed values from app config
+*/
 const autoplayButton = controls.querySelector(".autoplay");
 const shuffleButton = controls.querySelector(".shuffle");
 const sortSelect = controls.querySelector(".sort-by");
 const ascButton = controls.querySelector(".asc");
 const descButton = controls.querySelector(".desc");
 async function updatePrefs(pref, value) {
+	let prefValue = value;
 	// Update for current page load
-	displayPrefs[pref] = value;
+	displayPrefs[pref] = prevValue;
 	
 	if (pref === "autoplay" || pref === "shuffle") {
 		let control = (pref === "autoplay" ? autoplayButton : shuffleButton);
 		// Update button appearance to new value
 		control.classList[displayPrefs[pref] ? "add" : "remove"]("enabled");
 		// Convert for API
-		value = (value ? "1" : "0");
+		prefValue = (prefValue ? "1" : "0");
 	} else if (pref === "sort_direction") {
 		// Show asc if now asc; desc if now desc
 		ascButton.classList[displayPrefs[pref] === "asc"
-						 ? "remove" : "add"]("hidden");
+						  ? "remove" : "add"]("hidden");
 		descButton.classList[displayPrefs[pref] === "desc"
-						 ? "remove" : "add"]("hidden");
+						  ? "remove" : "add"]("hidden");
 	};
 	
 	if (apiAvailable) {
 		// Update for session
-		await loadJSON("prefs", pref, value);
+		await loadJSON("prefs", pref, prefValue);
 	} else {
 		console.log("Not logged in, preferences stored only for this page load");
 	}
@@ -923,11 +945,10 @@ function updatePositionState() {
 	}
 }
 
+// Default seconds to skip with seek buttons
+let defaultSkipTime = 10;
 if ("mediaSession" in navigator) {
-	// Default seconds to skip with seek buttons
-	let defaultSkipTime = 10;
-	
-	navigator.mediaSession.setActionHandler('play', async function() {
+	navigator.mediaSession.setActionHandler("play", async function() {
 		// No need to set metadata again as notification only shown
 		// when a video is already loaded and playing/paused
 		await player.play();
@@ -935,29 +956,29 @@ if ("mediaSession" in navigator) {
 		// player and notification
 		navigator.mediaSession.playbackState = "playing";
 	});
-	navigator.mediaSession.setActionHandler('pause', async function() {
+	navigator.mediaSession.setActionHandler("pause", async function() {
 		player.pause();
 		navigator.mediaSession.playbackState = "paused";
 	});
-	navigator.mediaSession.setActionHandler('nexttrack', function() {
+	navigator.mediaSession.setActionHandler("nexttrack", function() {
 		changeVideo("next");
 	});
-	navigator.mediaSession.setActionHandler('previoustrack', function() {
+	navigator.mediaSession.setActionHandler("previoustrack", function() {
 		changeVideo("previous");
 	});
-	navigator.mediaSession.setActionHandler('seekforward', function(event) {
+	navigator.mediaSession.setActionHandler("seekforward", function(event) {
 		const skipTime = event.seekOffset || defaultSkipTime;
 		// Max skip to end of video
 		player.currentTime = Math.min(player.currentTime +
 									  skipTime, player.duration);
 	});
-	navigator.mediaSession.setActionHandler('seekbackward', function(event) {
+	navigator.mediaSession.setActionHandler("seekbackward", function(event) {
 		const skipTime = event.seekOffset || defaultSkipTime;
 		// Min skip to start of video
 		player.currentTime = Math.max(player.currentTime - skipTime, 0);
 	});
 	try { // Notification closed (only recent browsers)
-		navigator.mediaSession.setActionHandler('stop', function() {
+		navigator.mediaSession.setActionHandler("stop", function() {
 			// Unload video
 			unloadCurrent("video");
 		});
@@ -966,8 +987,8 @@ if ("mediaSession" in navigator) {
 					"not supported by this browser");
 	};
 	try { // Notification seek to (only recent browsers)
-		navigator.mediaSession.setActionHandler('seekto', function(event) {
-			if (event.fastSeek && ('fastSeek' in player)) {
+		navigator.mediaSession.setActionHandler("seekto", function(event) {
+			if (event.fastSeek && ("fastSeek" in player)) {
 				player.fastSeek(event.seekTime);
 				return;
 			}

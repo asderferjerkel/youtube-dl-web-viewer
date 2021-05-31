@@ -14,8 +14,8 @@ def create_app():
 	# Copy config.py-dist to instance/config.py to override
 	app.config.from_mapping(
 		SECRET_KEY = 'dev',
-		PERMANENT_SESSION_LIFETIME = datetime.timedelta(days = 93), # Sessions default to 3 months
-		WTF_CSRF_TIME_LIMIT = None, # CSRF tokens expire with session
+		PERMANENT_SESSION_LIFETIME = datetime.timedelta(days = 93),
+		WTF_CSRF_TIME_LIMIT = None, # Expire with session
 		DATABASE = 'data.sqlite',
 		VIDEO_EXTENSIONS = {
 			'.mp4': 'video/mp4',
@@ -43,6 +43,14 @@ def create_app():
 			'average_rating': 'Rating',
 			'duration': 'Duration'
 			},
+		THUMBNAIL_FORMATS = {
+			'jpg':  { 'export_format': 'JPEG',
+					  'priority': 0 },
+			'webp': { 'export_format': 'WEBP',
+					  'priority': 1 }
+			},
+		THUMBNAIL_SIZE = (128, 72),
+		THUMBNAIL_QUALITY = 70,
 		DATABASE_LOG_LEVEL = logging.DEBUG
 	)
 	
@@ -90,6 +98,8 @@ def create_app():
 	
 	from . import settings
 	app.register_blueprint(settings.blueprint)
+	# Test for image generation support
+	settings.init_app(app)
 	
 	from . import api
 	app.register_blueprint(api.blueprint)

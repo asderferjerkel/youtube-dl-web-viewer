@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS folders;
 DROP TABLE IF EXISTS videos;
+DROP TABLE IF EXISTS thumbs;
 DROP TABLE IF EXISTS params;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS tasks;
@@ -43,30 +44,51 @@ CREATE TABLE videos (
 	FOREIGN KEY (folder_id) REFERENCES folders (id)
 );
 
+CREATE TABLE thumbs (
+	id INTEGER PRIMARY KEY,
+	video_id INTEGER NOT NULL,
+	thumb_format TEXT,
+	thumb_data BLOB,
+	format_priority INTEGER,
+	FOREIGN KEY (video_id) REFERENCES videos (id)
+);
+
 CREATE TABLE params (
 	setup_complete INTEGER NOT NULL,
 	last_refreshed NUMERIC NOT NULL,
 	refresh_interval INTEGER NOT NULL,
 	disk_path TEXT NOT NULL,
 	web_path TEXT NOT NULL,
-	web_path_username TEXT,
-	web_path_password TEXT,
-	metadata_source TEXT NOT NULL,
+	metadata_source INTEGER NOT NULL,
 	filename_format TEXT,
 	filename_delimiter TEXT,
+	generate_thumbs INTEGER NOT NULL,
 	replace_underscores INTEGER NOT NULL,
 	guests_can_view INTEGER NOT NULL
 );
 
-INSERT INTO params (setup_complete, last_refreshed, refresh_interval, disk_path, web_path, metadata_source, filename_format, filename_delimiter, replace_underscores, guests_can_view) VALUES (
+INSERT INTO params (
+	setup_complete,
+	last_refreshed,
+	refresh_interval,
+	disk_path,
+	web_path,
+	metadata_source,
+	filename_format,
+	filename_delimiter,
+	generate_thumbs,
+	replace_underscores,
+	guests_can_view
+) VALUES (
 	'0',
 	'0',
 	'86400',
 	'/home/user/videos/',
 	'https://example.com/videos/',
-	'json',
+	'1',
 	'{position}{title}{id}{date}',
 	' - ',
+	'1',
 	'1',
 	'0'
 );

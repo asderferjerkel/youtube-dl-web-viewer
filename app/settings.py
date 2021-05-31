@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 
-from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, g, current_app, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash	
 
 from flask_wtf import FlaskForm
@@ -15,7 +15,18 @@ from app.auth import login_required, add_user, update_user, login_user, LoginUse
 from app.db import get_db, get_params
 from app.helpers import check_conf
 
+try:
+	from PIL import features
+except ImportError:
+	features = None
+
 blueprint = Blueprint('settings', __name__, url_prefix='/settings')
+
+def init_app(app):
+	"""Warn if image generation support is missing"""
+	with app.app_context():
+		if features is None:
+			current_app.logger.warning('Thumbnail generation unavailable: Pillow is not installed')
 
 # Validate settings
 def is_folder(form, field):
@@ -30,9 +41,8 @@ class GeneralSettings(FlaskForm):
 	refresh_interval = StringField('Database refresh interval (seconds)', [validators.Regexp(u'^(?:0|[1-9]+\\d*[smhdw]?)$', message = 'Incorrect interval format (set to 0 to disable)')])
 	disk_path = StringField('Path on disk to scan for videos', [is_folder])
 	web_path = StringField('Web path that serves videos', [validators.URL(require_tld = False)])
-	web_path_username = StringField('HTTP basic auth username, [validators.Optional()]')
-	web_path_password = StringField('HTTP basic auth password, [validators.Optional()]')
-	metadata_source = SelectField('Get video metadata from', choices = [('json', 'json'), ('filename', 'filename')])
+	metadata_source = BooleanField('Scan for metadata files')
+	generate_thumbs = BooleanField('Generate playlist thumbnails')
 	filename_format = StringField('Video filename format', [validators.Optional()])
 	filename_delimiter = StringField('Video filename delimiter', [validators.Optional()])
 	replace_underscores = BooleanField('Replace underscores in titles')
@@ -90,9 +100,10 @@ def general():
 	
 	# Update settings
 	settings_form = GeneralSettings()
-	# Default last and next refresh
+	# Default strings
 	last_refreshed = 'Never'
 	next_refresh = 'Refresh database once to enable autorefresh'
+	thumbnail_status = 'Unavailable: Pillow is not installed'
 	
 	if settings_form.validate_on_submit():
 		# Interval string to seconds
@@ -106,12 +117,17 @@ def general():
 		# jinja2 autoescapes in templates so web path should be safe enough (famous last words lol)
 		disk_path = settings_form.disk_path.data
 		web_path = settings_form.web_path.data
-		web_path_username = settings_form.web_path_username.data
-		web_path_password = settings_form.web_path_password.data
 		if web_path[-1] != '/':
 			web_path = web_path + '/'
-		
-		metadata_source = settings_form.metadata_source.data
+		metadata_source = 1 if settings_form.metadata_source.data else 0
+		generate_thumbs = 0
+		if settings_form.generate_thumbs.data:
+			# Thumbnail generation enabled
+			if features is not None:
+				# Pillow is installed
+				generate_thumbs = 1
+			else:
+				flash('Thumbnail generation unavailable: Pillow is not installed (see help)', 'warn')
 		filename_format = settings_form.filename_format.data
 		filename_delimiter = settings_form.filename_delimiter.data
 		replace_underscores = 1 if settings_form.replace_underscores.data else 0
@@ -119,13 +135,12 @@ def general():
 		
 		db = get_db()
 		try:
-			db.execute('UPDATE params SET refresh_interval = ?, disk_path = ?, web_path = ?, web_path_username = ?, web_path_password = ?, metadata_source = ?, filename_format = ?, filename_delimiter = ?, replace_underscores = ?, guests_can_view = ?', (
+			db.execute('UPDATE params SET refresh_interval = ?, disk_path = ?, web_path = ?, metadata_source = ?, generate_thumbs = ?, filename_format = ?, filename_delimiter = ?, replace_underscores = ?, guests_can_view = ?', (
 				refresh_interval,
 				disk_path,
 				web_path,
-				web_path_username,
-				web_path_password,
 				metadata_source,
+				generate_thumbs,
 				filename_format,
 				filename_delimiter,
 				replace_underscores,
@@ -157,22 +172,28 @@ def general():
 		except sqlite3.OperationalError as e:
 			flash('Failed to get current settings: ' + str(e), 'error')
 		else:
-			## Preserve choices for metadata_source but set selected to current setting
-			# Convert sqlite3.Row to dict
-			params = {key: params[key] for key in params.keys()}
-			# Save current setting for metadata_source and remove from dict
-			metadata_source = params['metadata_source']
-			del params['metadata_source']
 			settings_form = GeneralSettings(data = params)
-			# Set selected to current setting
-			settings_form.metadata_source.default = metadata_source
-			
 			# Get database last and next refresh
 			if params['last_refreshed'] != 0:
 				last_refreshed = datetime.strftime(datetime.fromtimestamp(params['last_refreshed']), '%d/%m/%Y %H:%M') + ' UTC'
 				next_refresh = datetime.strftime(datetime.fromtimestamp(params['last_refreshed'] + params['refresh_interval']), '%d/%m/%Y %H:%M') + ' UTC'
+		
+		# Display available thumbnail formats
+		if features is not None:
+			# Pillow is installed
+			thumbnail_status = 'Available formats: '
+			thumbnail_formats = []
+			if 'jpg' in features.get_supported_codecs():
+				thumbnail_formats.append('jpg')
+			if 'webp' in features.get_supported_modules():
+				thumbnail_formats.append('webp')
+			
+			if len(thumbnail_formats) > 0:
+				thumbnail_status += ', '.join(thumbnail_formats)
+			else:
+				thumbnail_status += 'None'
 	
-	return render_template('settings/general.html', title = 'General settings', form = settings_form, last_refreshed = last_refreshed, next_refresh = next_refresh)
+	return render_template('settings/general.html', title = 'General settings', form = settings_form, last_refreshed = last_refreshed, next_refresh = next_refresh, thumbnail_status = thumbnail_status)
 
 @blueprint.route('/user', methods = ('GET', 'POST'))
 @login_required('user')
@@ -216,7 +237,6 @@ def user():
 		if request.method == 'GET':
 			# Warn if development keys are being used
 			check_conf()
-			
 			try:
 				# Exclude self
 				users = get_db().execute('SELECT id, username, is_admin FROM users WHERE id != ?', (g.user['id'], )).fetchall()
