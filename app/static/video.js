@@ -686,57 +686,6 @@ function intersectionChanged(entries, observer) {
 };
 
 
-/**
-  Check if the webserver hosting the video files and thumbnails requires
-  HTTP basic auth. If so, trigger login so the browser can cache credentials,
-  avoiding massive prompt spam when loading a playlist's thumbnails
-*/
-// todo: delete
-let basicAuthed = false;
-function checkBasicAuth() {
-	return new Promise(function(resolve, reject) {
-		if (basicAuthed) {
-			// Once authed, don't check again for this page load
-			resolve();
-		} else {
-			let xhr = new XMLHttpRequest();
-			// Succeeds without prompting if credentials are already cached
-			// Using xhr as fetch doesn't reliably cache for future requests:
-			// https://gist.github.com/ivermac/922def70ed9eaf83799b68ab1a587595
-			xhr.open("GET", webPath, true);
-			xhr.withCredentials = true;
-			
-			function failedAuth(error) {
-				console.log("HTTP basic auth failed:", error);
-				addMessage(error, null, false, "error", null, "Try again?",
-						   checkBasicAuth);
-				reject();
-			};
-			
-			xhr.onload = function() {
-				if (this.status !== 401) {
-					// Auth succeeded or not required
-					if (this.status !== 200) {
-						console.log("Unexpected response from video server, " +
-									"not unauthorised so assuming success:",
-									this.status, xhr.statusText);
-					}
-					basicAuthed = true;
-					resolve();
-				} else {
-					failedAuth("Video server requires a login, " +
-							   "but it was rejected.");
-				}
-			};
-			xhr.onerror = () => {
-				failedAuth("Could not connect to the video server.");
-			};
-			xhr.send();
-		}
-	});
-};
-
-
 // Play the currently-loaded video
 const playManual = playerContainer.querySelector(".play-manual");
 function playVideo() {
