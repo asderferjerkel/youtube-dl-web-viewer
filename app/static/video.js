@@ -662,12 +662,10 @@ function intersectionChanged(entries, observer) {
 	});
 	
 	function thumbsFromPending() {
-		console.log("getting pending thumbs");
-		if (pendingThumbs.size > 0) {
-			loadThumbs(pendingThumbs);
-		}
+		//console.log("getting pending thumbs");
+		loadThumbs(pendingThumbs)
 		.then(loadedThumbs => {
-			console.log("returned IDs", loadedThumbs);
+			//console.log("returned IDs", loadedThumbs);
 			// Await completion as further intersection changes will readd
 			// loading thumbs to the queue until complete
 			loadedThumbs.forEach((id) => {
