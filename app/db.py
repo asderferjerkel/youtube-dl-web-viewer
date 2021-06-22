@@ -76,7 +76,6 @@ class LogToDB(logging.Handler):
 			db.execute('INSERT INTO error_log (timestamp, level, message) VALUES (?, ?, ?)',
 				(timestamp, level, message)
 				)
-		
 		except sqlite3.OperationalError as e:
 			print('Failed to log to database: ' + message + ' (' + str(e) + ')')
 		else:
@@ -84,7 +83,9 @@ class LogToDB(logging.Handler):
 
 def clear_log():
 	"""Clear the error log"""
-	get_db().execute('DELETE from error_log')
+	db = get_db()
+	db.execute('DELETE from error_log')
+	db.commit()
 
 def get_log():
 	"""List logged errors"""

@@ -90,8 +90,3 @@ def error_log():
 		flash('Could not get log')
 	
 	return render_template('error_log.html', title = 'Error log', log = log, form = form)
-
-@blueprint.route('/test')
-def testing():
-	import sys
-	return str(sys.path)

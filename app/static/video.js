@@ -12,6 +12,8 @@ let videoList = document.getElementById("videos");
 const pageTitle = document.title; // Original when no video
 const titleSuffix = " | ytdl-web"; // Concat with video title
 
+let thumbFormat = 'jpg'; // Fallback
+
 let current = {
 	video: undefined, // Current video
 	playlist: [], // Current playlist contents, indexed by play order
@@ -27,6 +29,30 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		// Logged in and database ready, occasionally check tasks
 		lazyUpdateStatus();
 	}
+	
+	// Test browser format support for thumbnails
+	function testImageFormat(format, callback) {
+		const testImages = {
+			webpLossy: "data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA"
+		};
+		let img = new Image();
+		img.onload = function() {
+			// True if has dimensions
+			let result = (img.width > 0) && (img.height > 0);
+			callback(format, result);
+		};
+		img.onerror = function() {
+			callback(format, false);
+		};
+		img.src = testImages[format];
+	};
+	
+	// Test webp support
+	testImageFormat("webpLossy", (format, supported) => {
+		if (supported) {
+			thumbFormat = 'webp';
+		}
+	});
 	
 	// Load a video with unknown playlist
 	async function loadVideoPrePlaylist(videoID) {
@@ -171,12 +197,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
 async function loadFolders() {
 	let folders = await loadJSON("playlists");
 	// Sort folders by key and map values to array
-	folders.data = Object.keys(folders.data).sort().map((index) => folders.data[index]);
-	if (folders.data.length === 0) {
+	// todo: map instead, keeps order
+	let foldersSort = Object.keys(folders.data).sort().map((index) => folders.data[index]);
+	if (foldersSort.length === 0) {
 		// No folders, replace with placeholder
 		unloadCurrent("folders");
 	} else {
-		displayFolders(folders.data);
+		displayFolders(foldersSort);
 	}
 }
 
@@ -239,34 +266,28 @@ function displayFolders(folders) {
 
 // Load and display a playlist by its ID
 async function loadPlaylist(playlistID, addHistory = true) {
-	checkBasicAuth()
-	.then(async () => {
-		let playlist = await loadJSON("playlist", playlistID,
-									  displayPrefs.sort_by,
-									  displayPrefs.sort_direction);
-		current.playlist.length = 0;
-		// Sort playlist by play order and create (ordered) array from values
-		Object.keys(playlist.data).sort().forEach(
-			key => current.playlist.push(playlist.data[key]));
-		if (current.video === undefined) {
-			// Only update page URL if no video loaded
-			window.history[addHistory ? "pushState" : "replaceState"](
-					{"type": "playlist", "id": playlistID},
-					"", // title
-					baseUrl + "p/" + playlistID);
-		}
-		if (playlist.length === 0) {
-			// Empty playlist, replace with placeholder
-			unloadCurrent("playlist");
-		} else {
-			current.playlist.id = playlistID;
-			displayPlaylist(current.playlist);
-		}
-	})
-	.catch(error => {
-		// Basic auth failed
-		console.log("Not loading playlist");
-	});
+	let playlist = await loadJSON("playlist", playlistID,
+								  displayPrefs.sort_by,
+								  displayPrefs.sort_direction);
+	current.playlist.length = 0; // Empty
+	// Sort playlist by play order and create (ordered) array from values
+	// todo: map instead, keeps order
+	Object.keys(playlist.data).sort().forEach(
+		key => current.playlist.push(playlist.data[key]));
+	if (current.video === undefined) {
+		// Only update page URL if no video loaded
+		window.history[addHistory ? "pushState" : "replaceState"](
+				{"type": "playlist", "id": playlistID},
+				"", // title
+				baseUrl + "p/" + playlistID);
+	}
+	if (playlist.length === 0) {
+		// Empty playlist, replace with placeholder
+		unloadCurrent("playlist");
+	} else {
+		current.playlist.id = playlistID;
+		displayPlaylist(current.playlist);
+	}
 }
 
 function displayPlaylist(playlist) {
@@ -287,6 +308,7 @@ function displayPlaylist(playlist) {
 		let thumbElement = document.createElement("div");
 		thumbElement.className = "thumbnail";
 		
+		// Duration
 		if (video.duration != null) {
 			let durationElement = document.createElement("div");
 			durationElement.className = "duration";
@@ -294,6 +316,8 @@ function displayPlaylist(playlist) {
 			thumbElement.appendChild(durationElement);
 		}
 		
+		/*
+		todo: delete
 		// Add thumbnail if present, else playlist index
 		if (video.thumbnail != null) {
 			let thumbnail = document.createElement("img");
@@ -308,6 +332,18 @@ function displayPlaylist(playlist) {
 			thumbnail.textContent = index;
 			thumbElement.appendChild(thumbnail);
 		}
+		*/
+		// Empty placeholder for thumbnail
+		let thumbnail = document.createElement("img");
+		thumbnail.className = "thumb";
+		thumbElement.appendChild(thumbnail);
+		
+		// Playlist position (only visible if no thumbnail)
+		let position = document.createElement("div");
+		position.className = "number";
+		position.textContent = index;
+		thumbElement.appendChild(position);
+		
 		videoElement.appendChild(thumbElement);
 		
 		let nameElement = document.createElement("div");
@@ -315,7 +351,7 @@ function displayPlaylist(playlist) {
 		nameElement.textContent = video.title;
 		videoElement.appendChild(nameElement);
 		
-		// Video clicked
+		// Listen for video being clicked
 		videoElement.addEventListener("click", function() {
 			// Select self
 			let id = selectItem("video", null, this);
@@ -327,12 +363,27 @@ function displayPlaylist(playlist) {
 			// Load video
 			loadVideo(id);
 		});
+		
+		// Add video to list
 		newVideoList.appendChild(videoElement);
 	});
 	
 	// Replace existing playlist, clearing listeners
 	videoList.parentNode.replaceChild(newVideoList, videoList);
 	videoList = newVideoList;
+	
+	// Observe visibility changes in videos to load thumbs
+	let observer = new IntersectionObserver(intersectionChanged, {
+		root: videoList,
+		// Extend height by 50% top and bottom so thumbs load out of view
+		// Todo: second observer with much greater margin to unload when !isIntersecting, have this one only handle load when (isIntersecting)
+		rootMargin: "50%",
+		threshold: 0.5 // Trigger when half of item inside margin
+	});
+	
+	videoList.querySelectorAll(".video").forEach((video) => {
+		observer.observe(video);
+	});
 	
 	if (displayPrefs.shuffle) {
 		// Shuffle enabled, generate shuffled playlist
@@ -350,23 +401,16 @@ function displayPlaylist(playlist) {
 // Load, display and play a video by its ID
 // If addHistory = false, replace current instead of adding an emtry
 async function loadVideo(videoID, addHistory = true) {
-	checkBasicAuth()
-	.then(async () => {
-		let video = await loadJSON("video", videoID);
-		current.video = video.data;
-		// Update page URL
-		window.history[addHistory ? "pushState" : "replaceState"](
-				{"type": "video", "id": videoID},
-				"", // title
-				baseUrl + "v/" + videoID);
-		// Browsers don't support history.pushState title so set directly
-		document.title = current.video.title + titleSuffix;
-		displayVideo(current.video);
-	})
-	.catch(error => {
-		// Basic auth failed
-		console.log("Not loading video");
-	});
+	let video = await loadJSON("video", videoID);
+	current.video = video.data;
+	// Update page URL
+	window.history[addHistory ? "pushState" : "replaceState"](
+			{"type": "video", "id": videoID},
+			"", // title
+			baseUrl + "v/" + videoID);
+	// Browsers don't support history.pushState title so set directly
+	document.title = current.video.title + titleSuffix;
+	displayVideo(current.video);
 }
 
 function displayVideo(video) {
@@ -552,10 +596,102 @@ function displayVideo(video) {
 
 
 /**
+Load and display thumbnails from a Map of videoID: element
+  Returns an array of successfully requested video IDs,
+  whether or not they had thumbs
+*/
+const thumbsPerRq = 10;
+async function loadThumbs(thumbQueue) {
+	console.log("queue", thumbQueue);
+	let videoIDs = Array.from(thumbQueue.keys());
+	let loadedThumbs = []
+	// Split into chunks for smaller API responses
+	videoIDs = [...Array(Math.ceil(videoIDs.length / thumbsPerRq))]
+				.map((_, chunkIndex) => 
+					videoIDs.slice(
+						chunkIndex * thumbsPerRq,
+						(chunkIndex * thumbsPerRq) + thumbsPerRq
+					)
+				);
+	
+	// Request each chunk in turn
+	await Promise.all(videoIDs.map(async (chunk) => {
+		console.log("chunk", chunk);
+		const thumbs = await loadJSON("POST", chunk, "thumbs", thumbFormat);
+		console.log("response", thumbs);
+		// Loop through requested IDs
+		for (videoID of chunk) {
+			// Add ID to return
+			loadedThumbs.push(videoID);
+			console.log("loaded thumbs so far", loadedThumbs);
+			console.log("requested id", videoID);
+			let element = thumbQueue.get(videoID);
+			console.log("thumb element", element);
+			// Add class to prevent retry if no thumb returned
+			element.classList.add("has-thumb");
+			// Add image data if returned
+			if (videoID in thumbs.data) {
+				element.src = thumbs.data[videoID].d;
+			}
+		};
+	}));
+	
+	// Return successfully requested IDs
+	console.log("returning IDs", loadedThumbs);
+	return Promise.resolve(loadedThumbs);
+};
+
+// Watch for changes in visible playlist items and trigger thumbnail loads
+let pendingThumbs = new Map();
+let intersectionTimer;
+function intersectionChanged(entries, observer) {
+	console.log(pendingThumbs.size, "thumbs already queued");
+	console.log(entries);
+	
+	entries.forEach((entry) => {
+		if (entry.isIntersecting) {
+			// Element now within bounds
+			let thumbElement = entry.target.querySelector(".thumb");
+			if (!thumbElement.classList.contains("has-thumb")) {
+				// Video has no thumb, add to queue
+				let videoID = entry.target.getAttribute("data-video") << 0;
+				pendingThumbs.set(videoID, thumbElement);
+				console.log(pendingThumbs.size, "thumbs now queued");
+			}
+		}
+	});
+	
+	function thumbsFromPending() {
+		console.log("getting pending thumbs");
+		loadThumbs(pendingThumbs)
+		.then(loadedThumbs => {
+			console.log("returned IDs", loadedThumbs);
+			// Await completion as further intersection changes will readd
+			// loading thumbs to the queue until complete
+			loadedThumbs.forEach((id) => {
+				// Remove requested thumb from queue
+				pendingThumbs.delete(id);
+			});
+		});
+	};
+	
+	if (pendingThumbs.size > 0) {
+		// Have thumbs queued, reset delay
+		console.log("restarting timer")
+		clearTimeout(intersectionTimer);
+		// Once no more thumbs queued for 300ms, get thumbs
+		// (with queue at time of calling, in case more added)
+		intersectionTimer = setTimeout(thumbsFromPending, 300);
+	}
+};
+
+
+/**
   Check if the webserver hosting the video files and thumbnails requires
   HTTP basic auth. If so, trigger login so the browser can cache credentials,
   avoiding massive prompt spam when loading a playlist's thumbnails
 */
+// todo: delete
 let basicAuthed = false;
 function checkBasicAuth() {
 	return new Promise(function(resolve, reject) {

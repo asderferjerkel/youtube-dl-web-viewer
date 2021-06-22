@@ -48,7 +48,7 @@ CREATE TABLE thumbs (
 	id INTEGER PRIMARY KEY,
 	video_id INTEGER NOT NULL,
 	thumb_format TEXT,
-	thumb_data BLOB,
+	thumb_data TEXT,
 	format_priority INTEGER,
 	FOREIGN KEY (video_id) REFERENCES videos (id)
 );

@@ -26,7 +26,7 @@ def create_app():
 		THUMBNAIL_EXTENSIONS = {
 			'.webp': 'image/webp',
 			'.avif': 'image/avif',
-			'.jpg': 'image.jpeg',
+			'.jpg': 'image/jpeg',
 			'.jpeg': 'image/jpeg',
 			'.png': 'image/png',
 			'.gif': 'image/gif'
@@ -60,7 +60,7 @@ def create_app():
 	# Set up basic logging
 	logging.basicConfig(
 		stream = sys.stderr,
-		level = logging.ERROR,
+		level = app.config['DATABASE_LOG_LEVEL'],
 		format = '%(asctime)s %(levelname)s: %(message)s',
 		datefmt = '%Y-%m-%d %H:%M:%S'
 	)

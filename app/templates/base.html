@@ -17,12 +17,17 @@
 			const csrfToken = "{{ csrf_token() }}";
 			const baseUrl = "{{ url_for('index.index') }}";
 			
-			// Times in milliseconds
+			// Wait times in milliseconds
 			const delay = {
 				notificationFade: 5000, // Fade disappearing notifications after
 				notificationAnim: 500, // Wait for notification animation
-				checkStatus: 60000, // Check for running task every
+				checkStatus: 30000, // Check for running task every
 				refreshStatus: 3000 // Refresh running task status every
+			};
+			// Update timers
+			let timers = {
+				often: null,
+				lazy: null
 			};
 				
 			document.addEventListener("DOMContentLoaded", (event) => {
@@ -40,6 +45,31 @@
 					document.querySelector("header .navigation")
 							.classList.toggle("toggled");
 				});
+				
+				if ("hidden" in document) {
+					// Browser supports Page Visibility API
+					document.addEventListener("visibilitychange", (event) => {
+						// Page hidden/visible
+						for (const t in timers) {
+							// Cancel any active timers
+							if (timers[t] !== null) {
+								console.log("Cancelling timer:", t, timers[t]);
+								// Don't clear variable so can reactivate
+								clearTimeout(timers[t]);
+							}
+						};
+						if (!document["hidden"]) {
+							// Page visible, run any previously active now
+							if (timers.often !== null) {
+								console.log("Reactivating timer: often");
+								updateStatus();
+							} else if (timers.lazy !== null) {
+								console.log("Reactivating timer: lazy");
+								lazyUpdateStatus();
+							}
+						}
+					});
+				}
 			});
 			
 				
@@ -170,24 +200,33 @@
 			*/
 			async function loadJSON(...params) {
 				let endpoint;
+				let fetchParams = {
+					method: "GET",
+					headers: {
+						"X-CSRFToken": csrfToken
+					},
+					body: null
+				};
 				if (params.length > 2 && params[0] === "POST") {
 					// POST
 					endpoint = params.slice(2).join("/");
+					fetchParams.method = "POST";
+					fetchParams.headers["Accept"] = "application/json";
+					fetchParams.headers["Content-Type"] = "application/json";
+					fetchParams.body = JSON.stringify(params[1]);
 				} else {
 					// GET
 					endpoint = params.join("/");
 				}
-				const response = await fetch(baseUrl + "api/" + endpoint, {
-					headers: {
-						"X-CSRFToken": csrfToken
-					}
-				});
+				const response = await fetch(baseUrl + "api/" + endpoint,
+											 fetchParams);
 				const json = await response.json();
 				if (!response.ok) {
-					if (json.message !== undefined) {
+					if (json.message != null) {
 						addMessage(json.message, null, true, "warn");
 					} else {
-						console.error("Request failed:", response.statusText);
+						addMessage("API error: see console for details", null, true, "error");
+						console.error("API request failed:", response.statusText);
 					}
 				} else {
 					return json;
@@ -195,17 +234,16 @@
 			}
 			
 			
-			let timer;
-			let lazyTimer;
-			
 			async function refreshDatabase(rescan = false) {
 				let endpoint = (rescan ? "rescan" : "refresh")
 				let message = "Database " + endpoint + " started"
 				await loadJSON(endpoint);
 				addMessage(message, null, true);
 				// Clear timers and update status immediately
-				clearTimeout(timer);
-				clearTimeout(lazyTimer);
+				for (const t in timers) {
+					clearTimeout(timers[t]);
+					timers[t] = null;
+				};
 				updateStatus();
 			}
 			
@@ -220,7 +258,7 @@
 									task.file, task.of_files];
 					addMessage(task.message, "status", false, "info", progress);
 					// Queue next update
-					timer = setTimeout(updateStatus, delay.refreshStatus);
+					timers.often = setTimeout(updateStatus, delay.refreshStatus);
 				} else if (task.status === 0) {
 					// Task complete/none running
 					// Generic message if already cleared
@@ -232,41 +270,41 @@
 					addMessage(task.message, "status", false, "info", null,
 							   "Refresh playlists", action);
 					// Return to lazily checking status
-					lazyTimer = setTimeout(lazyUpdateStatus, delay.checkStatus);
+					timers.lazy = setTimeout(lazyUpdateStatus, delay.checkStatus);
 				} else if (task.status === -1) {
 					// Task error
 					addMessage(task.message, "status", false, "error", null,
 							   "Open error log", "link", [baseUrl + "log"]);
 					// Return to lazily checking status
-					lazyTimer = setTimeout(lazyUpdateStatus, delay.checkStatus);
+					timers.lazy = setTimeout(lazyUpdateStatus, delay.checkStatus);
 				} else {
 					console.error("Unexpected API response:", task)
 					addMessage("Unexpected API response!", "status", false,
 							   "warn", null, "Open error log", "link",
 							   [baseUrl + "log"]);
 					// Queue next update anyway
-					timer = setTimeout(updateStatus, delay.checkStatus);
+					timers.often = setTimeout(updateStatus, delay.checkStatus);
 				}
 			}
 			
-			// Quietly and occasionally check whether a task is running
+			// Occasionally check whether a task is running without notifying
 			async function lazyUpdateStatus() {
 				let response = await loadJSON("status");
 				let task = response.data;
 				
 				if (task.status === 1 || task.status === -1) {
-					// Task is running or errored, switch to updating status normally
+					// Task is running or errored, update status often
 					updateStatus();
 				} else {
 					// No task running
 					if (response.refresh_due &&
 						typeof apiAvailable !== "undefined" && apiAvailable) {
-						// Database refresh due, video page loaded and logged in
+						// Database refresh due; on video page and logged in
 						refreshDatabase();
 					} else {
 						// Queue next update
-						lazyTimer = setTimeout(lazyUpdateStatus,
-											   delay.checkStatus);
+						timers.lazy = setTimeout(lazyUpdateStatus,
+												 delay.checkStatus);
 					}
 				}
 			}

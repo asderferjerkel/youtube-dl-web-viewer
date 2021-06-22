@@ -906,6 +906,9 @@ table {
 					.list .number {
 						font-family: var(--serif);
 						font-weight: bold;
+						/* Numbers line up vertically on baseline */
+						font-feature-settings: lnum;
+						font-variant-numeric: lining-nums;
 					}
 					
 					.list .name {
@@ -939,18 +942,14 @@ table {
 					}
 				
 					.video .thumbnail {
+						display: grid;
+						grid-template-columns: [thumb] 1fr;
+						
 						position: relative;
 						height: calc((var(--thumb-width) / 16) * 9);
+						overflow: hidden;
 						
 						background-color: var(--loading);
-					}
-					
-						.video .thumbnail img {
-							height: 100%;
-						}
-					
-					.video .count {
-						overflow: hidden;
 					}
 					
 						.video .duration {
@@ -964,7 +963,15 @@ table {
 							color: white;
 						}
 					
+						.video .thumbnail img {
+							grid-column: thumb; /* Overlays number */
+							
+							height: 100%;
+						}
+						
 						.video .number {
+							grid-column: thumb;
+							
 							/* Oversized play order */
 							font-size: 2.75rem;
 							line-height: 3rem;

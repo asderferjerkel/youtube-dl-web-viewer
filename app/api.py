@@ -11,6 +11,7 @@ from pathlib import Path
 import urllib
 import re
 from io import BytesIO
+import base64
 
 from flask import Blueprint, g, current_app, request, session, jsonify
 from flask_wtf import csrf
@@ -124,20 +125,25 @@ def refresh_db(rescan = False):
 			generate_thumbs = False
 			if (params['generate_thumbs'] and features is not None):
 				# Enabled and Pillow installed
+				te = app.config.get('THUMBNAIL_EXTENSIONS')
 				ts = app.config.get('THUMBNAIL_SIZE')
 				tq = app.config.get('THUMBNAIL_QUALITY')
 				tf = app.config.get('THUMBNAIL_FORMATS')
 				# Check app config
-				if (isinstance(ts, tuple) and len(ts) == 2 and
+				if (isinstance(te, dict) and
+					isinstance(ts, tuple) and len(ts) == 2 and
 					isinstance(ts[0], int) and isinstance(ts[1], int) and
 					isinstance(tq, int) and 1 <= tq <= 95 and
 					isinstance(tf, dict)):
+					# THUMBNAIL_EXTENSIONS is a dict,
 					# THUMBNAIL_SIZE is a pair of integers,
 					# THUMBNAIL_QUALITY is integer 1-95, and
 					# THUMBNAIL_FORMATS is a dict of formats
 					# Check for Pillow support for desired image formats
 					pillow_features = features.get_supported_codecs() + features.get_supported_modules()
-					supported_formats = {key: value for key, value in tf.items() if key in pillow_features}
+					# Supported if in pillow features and has matching MIME
+					# type in THUMBNAIL_EXTENSIONS
+					supported_formats = {key: value for key, value in tf.items() if (key in pillow_features and '.' + str(key) in te)}
 					
 					if len(supported_formats) > 0:
 						# At least one format supported
@@ -145,7 +151,7 @@ def refresh_db(rescan = False):
 						# All formats (inc unsupported) default to no data
 						# todo: delete this
 						#thumb_data_template = dict.fromkeys(thumb_formats, None)
-						thumbs_to_generate = {}
+						thumbs_to_generate = []
 						app.logger.debug('Generating thumbnails: ' + str(', '.join(supported_formats.keys())))
 					else:
 						with_warnings = True
@@ -205,7 +211,7 @@ def refresh_db(rescan = False):
 			
 			# Scan each folder for video files
 			for folder_index, folder in enumerate(disk_folders):
-				app.logger.debug('Scanning folder #' + str(folder_index + 1) + ': "' + str(folder) + '"')
+				app.logger.debug('Scanning folder #' + str(folder_index + 1) + ' of ' + str(folder_count) + ': "' + str(folder) + '"')
 				try:
 					set_task(status = 1, folder = folder_index + 1, of_folders = folder_count, message = 'Scanning folder')
 				except sqlite3.OperationalError:
@@ -233,8 +239,9 @@ def refresh_db(rescan = False):
 					# Check if the folder exists in the database, if the database has folders
 					# DB stores folder paths relative to basepath so use that to compare
 					folder_relative = folder.relative_to(basepath)
-					if not rescan and db_folders and str(folder_relative) in db_folders:
+					if not rescan and (db_folders and str(folder_relative) in db_folders):
 						folder_id = db_folders[str(folder_relative)]
+						app.logger.debug('Found existing folder at ID ' + str(folder_id))
 						# Folder exists, get previously-scanned videos from database by folder ID
 						try:
 							db_files = list_videos(folder_id)
@@ -245,10 +252,9 @@ def refresh_db(rescan = False):
 								app.logger.error('Refresh: Could not cancel task')
 							finally:
 								raise sqlite3.OperationalError('Refresh: Could not list videos from database') from e
-						
+												
 						# Extract a list of filenames
 						db_files = [file['filename'] for file in db_files]
-						
 						# Remove previously-scanned videos from file list
 						# DB stores filename alone so remove path to compare
 						files[:] = [file for file in files if file.name not in db_files]
@@ -273,16 +279,16 @@ def refresh_db(rescan = False):
 							folder_name = folder.name
 							if params['replace_underscores']:
 								folder_name = folder_name.replace(' _ ', ' - ').replace('_', ' ')
-						# Store path as relative to basepath
-						folder_path = str(folder_relative)
+						
 						# All videos are unseen
 						new_video_count = len(files)
 						
 						try:
-							folder_id = add_folder(folder_name, str(folder_relative), new_video_count)
+							# Store path relative to basepath
+							folder_id = add_folder(folder_name, str(folder_relative), len(files))
 						except sqlite3.OperationalError:
 							with_warnings = True
-							app.logger.warning('Refresh: Could not add new folder "' + folder_path + '" to database, skipping')
+							app.logger.warning('Refresh: Could not add new folder "' + str(folder_relative) + '" to database, skipping')
 							# Skip to next folder
 							continue
 						else:
@@ -331,7 +337,7 @@ def refresh_db(rescan = False):
 								# Store filename without path
 								video['thumbnail'] = thumb.name
 								if generate_thumbs:
-									# Store full path (relative to basepath) for conversion
+									# Store relative path for conversion
 									video['thumb_path'] = folder.joinpath(thumb)
 								try:
 									# Store MIME type
@@ -351,7 +357,7 @@ def refresh_db(rescan = False):
 								metadata = meta
 						
 						# Rest of metadata defaults to None
-						video.update(dict.fromkeys(['thumb_small_jpg', 'thumb_small_webp', 'position', 'playlist_index', 'id', 'webpage_url', 'description', 'upload_date', 'uploader', 'uploader_url', 'duration', 'view_count', 'like_count', 'dislike_count', 'average_rating', 'categories', 'tags', 'height', 'vcodec', 'fps'], None))
+						video.update(dict.fromkeys(['position', 'playlist_index', 'id', 'webpage_url', 'description', 'upload_date', 'uploader', 'uploader_url', 'duration', 'view_count', 'like_count', 'dislike_count', 'average_rating', 'categories', 'tags', 'height', 'vcodec', 'fps'], None))
 						
 						# Parse filename format if format & delimiter params are present
 						if filename_parsing:
@@ -543,8 +549,15 @@ def refresh_db(rescan = False):
 										with_warnings = True
 										app.logger.warning('Could not save thumbnail: ' + str(e))
 									else:
-										# Add format as bytes to thumbnail data
-										thumb['data'][fmt] = stream.getvalue()
+										# Encode format as base64 data: URL
+										ext = '.' + str(fmt)
+										mime = app.config['THUMBNAIL_EXTENSIONS'][ext]
+										thumb['data'][fmt] = (
+											'data:' + mime + ';base64,' + 
+											base64.encodebytes(
+												stream.getvalue()
+											).decode('ascii')
+										)
 										app.logger.debug('Created ' + str(fmt) + ' thumbnail for video ID ' + str(thumb['id']))
 						except OSError as e:
 							with_warnings = True
@@ -576,12 +589,10 @@ def refresh_db(rescan = False):
 			finally:
 				# Task complete
 				message = 'Scan completed with warnings' if with_warnings else 'Scan complete'
-				app.logger.debug(message)
 				stats = str(new_folders) + ' new folders, ' + str(new_videos) + ' new videos'
-				app.logger.debug(stats)
-				message = message + "\n" + stats
+				app.logger.info(message + ' ' + stats)
 				try:
-					set_task(status = 0, message = message)
+					set_task(status = 0, message = message + "\n" + stats)
 				except sqlite3.OperationalError:
 					app.logger.error('Refresh: Could not set task to completed')
 	
@@ -616,13 +627,11 @@ def add_video(video):
 	Returns the video's unique ID
 	"""
 	db = get_db()
-	db.execute('INSERT INTO videos (folder_id, filename, thumbnail, thumbnail_format, thumb_small_jpg, thumb_small_webp, position, playlist_index, video_id, video_url, title, sort_title, description, upload_date, modification_time, uploader, uploader_url, duration, view_count, like_count, dislike_count, average_rating, categories, tags, height, vcodec, video_format, fps) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (
+	db.execute('INSERT INTO videos (folder_id, filename, thumbnail, thumbnail_format, position, playlist_index, video_id, video_url, title, sort_title, description, upload_date, modification_time, uploader, uploader_url, duration, view_count, like_count, dislike_count, average_rating, categories, tags, height, vcodec, video_format, fps) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (
 		video['folder_id'],
 		video['filename'],
 		video['thumbnail'],
 		video['thumbnail_format'],
-		video['thumb_small_jpg'],
-		video['thumb_small_webp'],
 		video['position'],
 		video['playlist_index'],
 		video['id'],
@@ -653,16 +662,24 @@ def add_video(video):
 def add_thumbnail(video_id, thumb_format, thumb_data):
 	"""
 	Add a video's thumbnail to the database by its ID.
-	One video can have many thumbnail formats.
+	One video can have many thumbnail formats. Each thumb_format has an integer
+	priority from app.config['THUMBNAIL_FORMATS'][thumb_format]['priority'].
 	thumb_format = Pillow codec/module name (e.g. 'jpg', 'webp')
-	thumb_data = Binary image data
+	thumb_data = base64-encoded data: URL
 	"""
 	# todo: look up and add format_priority from app.config
+	try:
+		format_priority = current_app.config['THUMBNAIL_FORMATS'][
+						  thumb_format]['priority']
+	except KeyError as e:
+		raise KeyError('No priority configured for format') from e
+	
 	db = get_db()
-	db.execute('INSERT INTO thumbs (video_id, thumb_format, thumb_data) VALUES (?, ?, ?)', (
+	db.execute('INSERT INTO thumbs (video_id, thumb_format, thumb_data, format_priority) VALUES (?, ?, ?, ?)', (
 		video_id,
 		thumb_format,
-		thumb_data
+		thumb_data,
+		format_priority
 		))
 	db.commit()
 
@@ -674,7 +691,9 @@ def list_folders():
 	return get_db().execute('SELECT * FROM folders ORDER BY folder_path ASC').fetchall()
 
 def list_videos(folder_id, sort_by = 'playlist_index', sort_direction = 'desc'):
-	"""Returns a sorted list of videos by folder ID"""
+	"""
+	Returns a sorted list of videos with their ID, title, duration and filename
+	"""
 	try:
 		folder_id = int(folder_id)
 	except ValueError as e:
@@ -690,15 +709,15 @@ def list_videos(folder_id, sort_by = 'playlist_index', sort_direction = 'desc'):
 	else:
 		raise ValueError('Sort direction must be "asc" or "desc"')
 	
-	sort_string = ' ORDER BY videos.' + sort_by + direction_string
+	sort_string = ' ORDER BY ' + sort_by + direction_string
 	if sort_by not in ['playlist_index', 'position', 'title']:
 		# Secondary sorts for all but the above in case of dupe/missing values
-		sort_string += (', videos.playlist_index' + direction_string +
-					    ', videos.position' + direction_string)
+		sort_string += (', playlist_index' + direction_string +
+					    ', position' + direction_string)
 	# All sorts finally fall back to ID 
-	sort_string += ', videos.id' + direction_string
+	sort_string += ', id' + direction_string
 	
-	return get_db().execute('SELECT videos.id, videos.title, videos.thumbnail, videos.duration, videos.filename, folders.folder_path FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE folder_id = ?' + sort_string, (folder_id, )).fetchall()
+	return get_db().execute('SELECT id, title, duration, filename FROM videos WHERE folder_id = ?' + sort_string, (folder_id, )).fetchall()
 
 def get_video(id):
 	"""Return a single video"""
@@ -707,7 +726,20 @@ def get_video(id):
 	except ValueError as e:
 		raise ValueError('id not an integer') from e
 	
-	return get_db().execute('SELECT videos.folder_id, videos.id, videos.filename, videos.thumbnail, videos.video_id, videos.video_url, videos.title, videos.description, strftime("%d/%m/%Y", videos.upload_date) AS upload_date, strftime("%d/%m/%Y %H:%M", videos.modification_time) AS modification_time, videos.uploader, videos.uploader_url, videos.duration, videos.view_count, videos.like_count, videos.dislike_count, videos.average_rating, videos.categories, videos.tags, videos.height, videos.vcodec, videos.video_format, videos.fps, folders.folder_path, folders.folder_name FROM videos INNER JOIN folders ON videos.folder_id = folders.id WHERE videos.id = ?', (id, )).fetchone()
+	query = ('SELECT videos.folder_id, videos.id, videos.filename, '
+			 'videos.thumbnail, videos.video_id, videos.video_url, '
+			 'videos.title, videos.description, strftime("%d/%m/%Y", '
+			 'videos.upload_date) AS upload_date, strftime("%d/%m/%Y %H:%M", '
+			 'videos.modification_time) AS modification_time, '
+			 'videos.uploader, videos.uploader_url, videos.duration, '
+			 'videos.view_count, videos.like_count, videos.dislike_count, '
+			 'videos.average_rating, videos.categories, videos.tags, '
+			 'videos.height, videos.vcodec, videos.video_format, '
+			 'videos.fps, folders.folder_path, folders.folder_name '
+			 'FROM videos INNER JOIN folders ON videos.folder_id = folders.id '
+			 'WHERE videos.id = ?')
+	
+	return get_db().execute(query, (id, )).fetchone()
 
 def get_thumbs(image_format, ids):
 	"""
@@ -744,17 +776,17 @@ def get_thumbs(image_format, ids):
 	
 	# Get the best format available up to the requested max for each ID
 	try:
-		max_priority = int(current_app.config['THUMBNAIL_FORMATS'][image_format][priority])
+		max_priority = int(current_app.config['THUMBNAIL_FORMATS'][image_format]['priority'])
 	except ValueError as e:
 		raise ValueError('Priority in THUMBNAIL_FORMATS not an integer')
 	
-	query = (f"SELECT video_id, thumb_format, thumb_data, "
-			 f"MAX(format_priority) as format_priority "
-			 f"FROM thumbs WHERE format_priority <= ? "
-			 f"AND video_id in ({', '.join(['?']*len(ids))}) "
-			 f"GROUP BY video_id ")
+	query = ('SELECT video_id, thumb_format, thumb_data, '
+			 'MAX(format_priority) as format_priority '
+			 'FROM thumbs WHERE format_priority <= ? '
+			f"AND video_id in ({', '.join(['?']*len(ids))}) "
+			 'GROUP BY video_id')
 	
-	return get_db().execute(query, (ids, max_priority)).fetchall()
+	return get_db().execute(query, (max_priority, *ids)).fetchall()
 	
 	# none of this shit:
 	"""
@@ -936,18 +968,14 @@ def playlist(folder_id, sort_by, sort_direction):
 		return jsonify({'result': 'error',
 						'message': 'Playlist does not exist'}), 404
 	
-	# Convert list of sqlite3.Row objects to dict of dicts indexed by sort order
-	videos = {index: {key: row[key] for key in row.keys()} for index, row in enumerate(videos)}
+	# Convert list of sqlite3.Row objects to dict of dicts indexed by
+	# sort order, excluding filename
+	videos = {index: {key: row[key] for key in row.keys() if key != 'filename'} for index, row in enumerate(videos)}
 	
 	for video in videos.values():
 		# Format duration
 		if video['duration'] is not None:
 			video['duration'] = format_duration(video['duration'])
-		# Generate thumbnail URL (escape spaces, HTML chars in directory and filename)
-		if video['thumbnail'] is not None:
-			video['thumbnail'] = params['web_path']+ urllib.parse.quote(Path(video['folder_path']).joinpath(Path(video['thumbnail'])).as_posix())
-		# Remove filename, folder path
-		del(video['filename'], video['folder_path'])
 	
 	return jsonify({'result': 'ok',
 					'data': videos})
@@ -1003,19 +1031,20 @@ def video(video_id):
 	# todo:
 	# maybe move the dict stuff (same w playlists) + file_path to get_video so can grab on page load too
 	  # only remove extra unneeded keys here
-	# rmb thumb urls for /playlist
 	# format upload_date (YYYYMMDD), modification_time (timestamp), duration
 	
 	return jsonify({'result': 'ok',
 					'data': video})
 
-@blueprint.route('/thumbs/<string:image_format>', methods = ['POST'],
-				 defaults = {'image_format': 'jpg'})
+@blueprint.route('/thumbs', methods = ['POST'], defaults = {
+				 'image_format': 'jpg'})
+@blueprint.route('/thumbs/<string:image_format>', methods = ['POST'])
 @login_required('guest', api = True)
 def thumbs(image_format):
 	"""
-	Get small thumbnails for a JSON list of video IDs in a preferred format
-	Returns a dict of dicts indexed by video ID e.g. 1: {'f': 'jpg', 'd': blob}
+	Get small thumbnails for a JSON array of video IDs in the requested format,
+	falling back to compatible formats if the requested is unavailable
+	Returns a dict of dicts indexed by video ID: {1: {'f': 'jpg', 'd': data}}
 	"""
 	video_ids = request.get_json(silent = True)
 	if (video_ids is None or not isinstance(video_ids, list)):
@@ -1034,7 +1063,7 @@ def thumbs(image_format):
 						'message': 'Failed to get thumbnails'}), 500
 	
 	# Dict of dicts indexed by video ID
-	thumb_data = {video['id']: {'f': video['image_format'], 'd': video['data']} for video in thumbnails}
+	thumb_data = {thumb['video_id']: {'f': thumb['thumb_format'], 'd': thumb['thumb_data']} for thumb in thumbnails}
 	
 	return jsonify({'result': 'ok',
 					'data': thumb_data})

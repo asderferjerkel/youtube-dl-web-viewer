@@ -30,11 +30,12 @@ VIDEO_EXTENSIONS = {
 	}
 
 # Thumbnail extensions: scanner will look for thumbnails with these extensions
-# (MIME types are used for embedding)
+# MIME types are also used for embedding, so ensure all THUMBNAIL_FORMATS are
+# also listed here
 THUMBNAIL_EXTENSIONS = {
 	'.webp': 'image/webp',
 	'.avif': 'image/avif',
-	'.jpg': 'image.jpeg',
+	'.jpg': 'image/jpeg',
 	'.jpeg': 'image/jpeg',
 	'.png': 'image/png',
 	'.gif': 'image/gif'
@@ -75,5 +76,6 @@ THUMBNAIL_SIZE = 128, 72
 # Thumbnail quality: integer 1-95, used for jpg and webp exports
 THUMBNAIL_QUALITY = 70
 
-# Log level: will log events this level or higher to the database (logging.NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL)
+# Log level: will log events this level or higher to the database
+# Follow "logging." with NOTSET, DEBUG, INFO, WARNING, ERROR or CRITICAL
 DATABASE_LOG_LEVEL = logging.DEBUG
