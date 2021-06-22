@@ -645,14 +645,8 @@ async function loadThumbs(thumbQueue) {
 let pendingThumbs = new Map();
 let intersectionTimer;
 function intersectionChanged(entries, observer) {
-	// Clear existing queue to only load currently visible thumbs
-	console.log("old queue", pendingThumbs);
-	console.log("clearing queue");
-	pendingThumbs.clear();
-	console.log("new queue", pendingThumbs);
-	
-	console.log(pendingThumbs.size, "thumbs already queued");
-	console.log(entries);
+	//console.log(pendingThumbs.size, "thumbs already queued");
+	//console.log(entries);
 	
 	entries.forEach((entry) => {
 		if (entry.isIntersecting) {
@@ -669,8 +663,9 @@ function intersectionChanged(entries, observer) {
 	
 	function thumbsFromPending() {
 		console.log("getting pending thumbs");
-		loadThumbs(pendingThumbs);
-		/*
+		if (pendingThumbs.size > 0) {
+			loadThumbs(pendingThumbs);
+		}
 		.then(loadedThumbs => {
 			console.log("returned IDs", loadedThumbs);
 			// Await completion as further intersection changes will readd
@@ -680,12 +675,11 @@ function intersectionChanged(entries, observer) {
 				pendingThumbs.delete(id);
 			});
 		});
-		*/
 	};
 	
 	if (pendingThumbs.size > 0) {
 		// Have thumbs queued, reset delay
-		console.log("restarting timer")
+		//console.log("restarting timer")
 		clearTimeout(intersectionTimer);
 		// Once no more thumbs queued for 300ms, get thumbs
 		// (with queue at time of calling, in case more added)
