@@ -602,7 +602,7 @@ Load and display thumbnails from a Map of videoID: element
 */
 const thumbsPerRq = 10;
 async function loadThumbs(thumbQueue) {
-	console.log("queue", thumbQueue);
+	//console.log("queue", thumbQueue);
 	let videoIDs = Array.from(thumbQueue.keys());
 	let loadedThumbs = []
 	// Split into chunks for smaller API responses
@@ -616,17 +616,17 @@ async function loadThumbs(thumbQueue) {
 	
 	// Request each chunk in turn
 	await Promise.all(videoIDs.map(async (chunk) => {
-		console.log("chunk", chunk);
+		//console.log("chunk", chunk);
 		const thumbs = await loadJSON("POST", chunk, "thumbs", thumbFormat);
-		console.log("response", thumbs);
+		//console.log("response", thumbs);
 		// Loop through requested IDs
 		for (videoID of chunk) {
 			// Add ID to return
 			loadedThumbs.push(videoID);
-			console.log("loaded thumbs so far", loadedThumbs);
-			console.log("requested id", videoID);
+			//console.log("loaded thumbs so far", loadedThumbs);
+			//console.log("requested id", videoID);
 			let element = thumbQueue.get(videoID);
-			console.log("thumb element", element);
+			//console.log("thumb element", element);
 			// Add class to prevent retry if no thumb returned
 			element.classList.add("has-thumb");
 			// Add image data if returned
@@ -637,7 +637,7 @@ async function loadThumbs(thumbQueue) {
 	}));
 	
 	// Return successfully requested IDs
-	console.log("returning IDs", loadedThumbs);
+	//console.log("returning IDs", loadedThumbs);
 	return Promise.resolve(loadedThumbs);
 };
 
@@ -646,7 +646,10 @@ let pendingThumbs = new Map();
 let intersectionTimer;
 function intersectionChanged(entries, observer) {
 	// Clear existing queue to only load currently visible thumbs
+	console.log("old queue", pendingThumbs);
+	console.log("clearing queue");
 	pendingThumbs.clear();
+	console.log("new queue", pendingThumbs);
 	
 	console.log(pendingThumbs.size, "thumbs already queued");
 	console.log(entries);
@@ -659,7 +662,7 @@ function intersectionChanged(entries, observer) {
 				// Video has no thumb, add to queue
 				let videoID = entry.target.getAttribute("data-video") << 0;
 				pendingThumbs.set(videoID, thumbElement);
-				console.log(pendingThumbs.size, "thumbs now queued");
+				//console.log(pendingThumbs.size, "thumbs now queued");
 			}
 		}
 	});
@@ -686,7 +689,7 @@ function intersectionChanged(entries, observer) {
 		clearTimeout(intersectionTimer);
 		// Once no more thumbs queued for 300ms, get thumbs
 		// (with queue at time of calling, in case more added)
-		intersectionTimer = setTimeout(thumbsFromPending, 300);
+		intersectionTimer = setTimeout(thumbsFromPending, 1000);
 	}
 };
 
