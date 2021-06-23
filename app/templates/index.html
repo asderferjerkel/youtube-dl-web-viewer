@@ -122,10 +122,13 @@
 	</section>
 
 	<script>
-		let apiAvailable = {{ 'true' if api_available else 'false' }};
-		let loadItem = {{ load_item | tojson }};
+		const apiAvailable = {{ api_available | tojson }};
+		const webPath = {{ web_path | tojson }};
+		const loadItem = {{ load_item | tojson }};
+		const getThumbs = {{ get_thumbs | tojson }};
+		const thumbFormats = {{ thumb_formats | tojson }};
+		const thumbSize = {{ config.THUMBNAIL_SIZE | tojson if config.THUMBNAIL_SIZE else '[128, 72]' }};
 		let displayPrefs = {{ display_prefs | tojson }};
-		let webPath = {{ web_path | tojson }};
 	</script>
 	<script src="{{ url_for('static', filename = 'video.js') }}"></script>
 {% endblock %}

@@ -12,7 +12,7 @@ let videoList = document.getElementById("videos");
 const pageTitle = document.title; // Original when no video
 const titleSuffix = " | ytdl-web"; // Concat with video title
 
-let thumbFormat = 'jpg'; // Fallback
+let thumbFormat = ['jpg', 'image/jpeg']; // Fallback
 
 let current = {
 	video: undefined, // Current video
@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Test webp support
 	testImageFormat("webpLossy", (format, supported) => {
 		if (supported) {
-			thumbFormat = 'webp';
+			thumbFormat = ['webp', 'image/webp'];
 		}
 	});
 	
@@ -632,6 +632,7 @@ async function loadThumbs(thumbQueue) {
 			// Add image data if returned
 			if (videoID in thumbs.data) {
 				element.src = thumbs.data[videoID].d;
+				element.setAttribute("data-format", thumbFormat);
 			}
 		};
 	}));
@@ -681,7 +682,7 @@ function intersectionChanged(entries, observer) {
 		clearTimeout(intersectionTimer);
 		// Once no more thumbs queued for 300ms, get thumbs
 		// (with queue at time of calling, in case more added)
-		intersectionTimer = setTimeout(thumbsFromPending, 1000);
+		intersectionTimer = setTimeout(thumbsFromPending, 300);
 	}
 };
 
@@ -701,7 +702,7 @@ function playVideo() {
 				current.video.thumbnail_format !== null) {
 				thumbnail = [{
 					src: current.video.thumbnail,
-					sizes: "1920x1080", // hardcoded lol
+					sizes: thumbSize[0] + "x" + thumbSize[1],
 					type: current.video.thumbnail_format
 				}];
 			}
