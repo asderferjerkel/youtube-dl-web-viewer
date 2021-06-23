@@ -702,7 +702,7 @@ function playVideo() {
 				current.video.thumbnail_format !== null) {
 				thumbnail = [{
 					src: current.video.thumbnail,
-					sizes: thumbSize[0] + "x" + thumbSize[1],
+					sizes: "1920x1080", // hardcoded lol
 					type: current.video.thumbnail_format
 				}];
 			}

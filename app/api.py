@@ -727,10 +727,11 @@ def get_video(id):
 		raise ValueError('id not an integer') from e
 	
 	query = ('SELECT videos.folder_id, videos.id, videos.filename, '
-			 'videos.thumbnail, videos.video_id, videos.video_url, '
-			 'videos.title, videos.description, strftime("%d/%m/%Y", '
-			 'videos.upload_date) AS upload_date, strftime("%d/%m/%Y %H:%M", '
-			 'videos.modification_time) AS modification_time, '
+			 'videos.thumbnail, videos.thumbnail_format, videos.video_id, '
+			 'videos.video_url, videos.title, videos.description, '
+			 'strftime("%d/%m/%Y", videos.upload_date) AS upload_date, '
+			 'strftime("%d/%m/%Y %H:%M", videos.modification_time) '
+			 'AS modification_time, '
 			 'videos.uploader, videos.uploader_url, videos.duration, '
 			 'videos.view_count, videos.like_count, videos.dislike_count, '
 			 'videos.average_rating, videos.categories, videos.tags, '
