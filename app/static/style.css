@@ -861,8 +861,12 @@ table {
 			}
 		
 		.playlists {
-			max-height: 15vh;
-			min-height: 3.75rem; /* Fit at least one item */
+			/* Fit at least 3 items, or one if fewer */
+			min-height: 3.75rem;
+			/* max-height: 15vh; */
+			max-height: max(15vh, calc(9rem +
+						2 * (var(--border-offset) +
+							 var(--border-width))));
 			margin-bottom: 1rem;
 		}
 		
@@ -875,9 +879,12 @@ table {
 			}
 		
 		.videos {
-			max-height: 65vh;
-			/* Fit at least one item */
+			/* Fit at least 10 items, or 1 if fewer */
 			min-height: calc(((var(--thumb-width) / 16) * 9) +
+						2 * (var(--border-offset) +
+							 var(--border-width)));
+			/* max-height: 65vh; */
+			max-height: calc((10 * (var(--thumb-width) / 16) * 9) +
 						2 * (var(--border-offset) +
 							 var(--border-width)));
 		}
