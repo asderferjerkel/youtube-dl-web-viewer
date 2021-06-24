@@ -865,7 +865,8 @@ table {
 			/* Fit at least 3 items, or one if fewer */
 			min-height: 3.75rem;
 			/* max-height: 15vh; */
-			max-height: max(15vh, calc(3 * (2.25rem + var(--item-gap)) +
+			max-height: max(15vh, calc(3 *
+						(2.25rem + var(--item-gap)) +
 						2 * (var(--border-offset) +
 							 var(--border-width))));
 			margin-bottom: 1rem;
@@ -885,7 +886,7 @@ table {
 						2 * (var(--border-offset) +
 							 var(--border-width)));
 			/* max-height: 65vh; */
-			max-height: calc(10 *
+			max-height: max(65vh, calc(10 *
 						(((var(--thumb-width) / 16) * 9) + var(--item-gap)) +
 						2 * (var(--border-offset) +
 							 var(--border-width)));
