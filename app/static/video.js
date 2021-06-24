@@ -996,10 +996,10 @@ const sortSelect = controls.querySelector(".sort-by");
 const ascButton = controls.querySelector(".asc");
 const descButton = controls.querySelector(".desc");
 async function updatePrefs(pref, value) {
-	let prefValue = value;
 	// Update for current page load
-	displayPrefs[pref] = prevValue;
+	displayPrefs[pref] = value;
 	
+	let prefValue = value;
 	if (pref === "autoplay" || pref === "shuffle") {
 		let control = (pref === "autoplay" ? autoplayButton : shuffleButton);
 		// Update button appearance to new value

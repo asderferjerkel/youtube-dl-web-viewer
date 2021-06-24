@@ -23,7 +23,7 @@
 				notificationFade: 5000, // Fade disappearing notifications after
 				notificationAnim: 500, // Wait for notification animation
 				checkStatus: 30000, // Check for running task every
-				refreshStatus: 1000 // Refresh running task status every
+				refreshStatus: 2000 // Refresh running task status every
 			};
 			// Update timers
 			let timers = {
@@ -247,9 +247,9 @@
 			async function refreshDatabase(rescan = false) {
 				let endpoint = (rescan ? "rescan" : "refresh")
 				let message = "Database " + endpoint + " started"
+				addMessage(message, null, true);
 				// Don't wait for return
 				loadJSON(endpoint);
-				addMessage(message, null, true);
 				// Clear timers and update status immediately
 				for (const t in timers) {
 					clearTimeout(timers[t]);
@@ -278,7 +278,7 @@
 					// Offer playlist refresh if on video page
 					const action = (typeof(loadFolders) === "function"
 								 ? loadFolders : null);
-					addMessage(task.message, "status", false, "info", null,
+					addMessage(task.message, "status", true, "info", null,
 							   "Refresh playlists", action);
 					// Return to lazily checking status
 					timers.lazy = setTimeout(lazyUpdateStatus, delay.checkStatus);
