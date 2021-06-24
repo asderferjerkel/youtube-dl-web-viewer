@@ -889,7 +889,7 @@ table {
 			max-height: max(65vh, calc(10 *
 						(((var(--thumb-width) / 16) * 9) + var(--item-gap)) +
 						2 * (var(--border-offset) +
-							 var(--border-width)));
+							 var(--border-width))));
 		}
 			
 			.videos::before {
