@@ -16,6 +16,7 @@
 		<script>
 			const csrfToken = "{{ csrf_token() }}";
 			const baseUrl = "{{ url_for('index.index') }}";
+			let loadingSpinners;
 			
 			// Wait times in milliseconds
 			const delay = {
@@ -31,6 +32,9 @@
 			};
 				
 			document.addEventListener("DOMContentLoaded", (event) => {
+				// Select loading spinners
+				loadingSpinners = document.querySelectorAll(".loading .sprite");
+				
 				// Hide message on click
 				document.querySelectorAll(".flash").forEach(function(message) {
 					message.querySelector(".close")
@@ -199,6 +203,11 @@
 			  POST: loadJSON("POST", postData, "playlist", 1)
 			*/
 			async function loadJSON(...params) {
+				// Show loading spinner
+				loadingSpinners.forEach((spinner) => {
+					spinner.style.display = "inline-flex";
+				});
+				
 				let endpoint;
 				let fetchParams = {
 					method: "GET",
@@ -221,6 +230,10 @@
 				const response = await fetch(baseUrl + "api/" + endpoint,
 											 fetchParams);
 				const json = await response.json();
+				// Hide loading spinner
+				loadingSpinners.forEach((spinner) => {
+					spinner.style.display = "none";
+				});
 				if (!response.ok) {
 					if (json.message != null) {
 						addMessage(json.message, null, true, "warn");
@@ -317,11 +330,15 @@
 				<header>
 					<a class="site-logo" href="{{ url_for('index.index') }}" aria-label="Home">{{ render_sprite('site') }}</a>
 					<nav class="toggle-menu">
-						<button title="Menu">{{ render_sprite('menu') }}</button>
+						<ul>
+							<li class="loading loading-small">{{ render_sprite('loading') }}</li>
+							<li><button title="Menu">{{ render_sprite('menu') }}</button></li>
+						</ul>
 					</nav>
 					<nav class="navigation">
 					{% if g.user %}
 						<ul class="user">
+							<li class="loading loading-large">{{ render_sprite('loading') }}</li>
 							<li><a href="{{ url_for('settings.user') }}" title="My account">{{ render_sprite('user') }} {{ g.user['username'] }}</a></li>
 							<li><a href="{{ url_for('auth.logout') }}" title="Log out">{{ render_sprite('logout') }}</a></li>
 						</ul>
@@ -336,6 +353,7 @@
 						{% endif %}
 					{% else %}
 						<ul class="user">
+							<li class="loading loading-large">{{ render_sprite('loading') }}</li>
 							<li><a href="{{ url_for('auth.login') }}" title="Log in">{{ render_sprite('login') }}</a></li>
 						</ul>
 					{% endif %}

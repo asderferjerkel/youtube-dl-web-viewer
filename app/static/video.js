@@ -8,11 +8,12 @@ const descriptionContainer = info.querySelector(".description-container");
 const controls = document.getElementById("controls");
 let playlistList = document.getElementById("playlists");
 let videoList = document.getElementById("videos");
+let listPadding = 0; // Initial
 
 const pageTitle = document.title; // Original when no video
 const titleSuffix = " | ytdl-web"; // Concat with video title
 
-let thumbFormat = ['jpg', 'image/jpeg']; // Fallback
+let thumbFormat = 'jpg'; // Default fallback format
 
 let current = {
 	video: undefined, // Current video
@@ -25,10 +26,14 @@ current.playlist.id = undefined; // Current playlist ID
 
 
 document.addEventListener("DOMContentLoaded", (event) => {
+	// Occasionally check tasks if logged in and database ready
 	if (apiAvailable) {
-		// Logged in and database ready, occasionally check tasks
 		lazyUpdateStatus();
 	}
+	
+	// Calculate padding on lists for scrolling
+	// (assuming same for all)
+	listPadding = window.getComputedStyle(videoList.parentNode, null).getPropertyValue("padding-top").replace("px", "");
 	
 	// Test browser format support for thumbnails
 	function testImageFormat(format, callback) {
@@ -50,7 +55,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Test webp support
 	testImageFormat("webpLossy", (format, supported) => {
 		if (supported) {
-			thumbFormat = ['webp', 'image/webp'];
+			thumbFormat = 'webp';
 		}
 	});
 	
@@ -373,14 +378,11 @@ function displayPlaylist(playlist) {
 	videoList = newVideoList;
 	
 	// Observe visibility changes in videos to load thumbs
-	let observer = new IntersectionObserver(intersectionChanged, {
-		root: videoList,
-		// Extend height by 50% top and bottom so thumbs load out of view
-		// Todo: second observer with much greater margin to unload when !isIntersecting, have this one only handle load when (isIntersecting)
-		rootMargin: "50%",
-		threshold: 0.5 // Trigger when half of item inside margin
-	});
-	
+	if (typeof(observer.disconnect) !== "undefined") {
+		// Disconnect any existing observer
+		observer.disconnect();
+	}
+	observer = createObserver();
 	videoList.querySelectorAll(".video").forEach((video) => {
 		observer.observe(video);
 	});
@@ -602,7 +604,6 @@ Load and display thumbnails from a Map of videoID: element
 */
 const thumbsPerRq = 10;
 async function loadThumbs(thumbQueue) {
-	//console.log("queue", thumbQueue);
 	let videoIDs = Array.from(thumbQueue.keys());
 	let loadedThumbs = []
 	// Split into chunks for smaller API responses
@@ -616,17 +617,12 @@ async function loadThumbs(thumbQueue) {
 	
 	// Request each chunk in turn
 	await Promise.all(videoIDs.map(async (chunk) => {
-		//console.log("chunk", chunk);
 		const thumbs = await loadJSON("POST", chunk, "thumbs", thumbFormat);
-		//console.log("response", thumbs);
 		// Loop through requested IDs
 		for (videoID of chunk) {
 			// Add ID to return
 			loadedThumbs.push(videoID);
-			//console.log("loaded thumbs so far", loadedThumbs);
-			//console.log("requested id", videoID);
 			let element = thumbQueue.get(videoID);
-			//console.log("thumb element", element);
 			// Add class to prevent retry if no thumb returned
 			element.classList.add("has-thumb");
 			// Add image data if returned
@@ -634,21 +630,31 @@ async function loadThumbs(thumbQueue) {
 				element.src = thumbs.data[videoID].d;
 				element.setAttribute("data-format", thumbFormat);
 			}
+			// Stop observing this video
+			observer.unobserve(element.parentNode.parentNode);
 		};
 	}));
 	
 	// Return successfully requested IDs
-	//console.log("returning IDs", loadedThumbs);
 	return Promise.resolve(loadedThumbs);
 };
 
 // Watch for changes in visible playlist items and trigger thumbnail loads
+let observer = {};
+function createObserver(rootElement) {
+	obs = new IntersectionObserver(intersectionChanged, {
+		root: rootElement,
+		// Extend height by 50% top and bottom so thumbs out of view load
+		rootMargin: "50%",
+		threshold: 0.5, // Trigger when half of item inside margin
+		delay: 100 // Don't trigger events too often
+	});
+	return obs;
+};
+
 let pendingThumbs = new Map();
 let intersectionTimer;
 function intersectionChanged(entries, observer) {
-	//console.log(pendingThumbs.size, "thumbs already queued");
-	//console.log(entries);
-	
 	entries.forEach((entry) => {
 		if (entry.isIntersecting) {
 			// Element now within bounds
@@ -657,16 +663,13 @@ function intersectionChanged(entries, observer) {
 				// Video has no thumb, add to queue
 				let videoID = entry.target.getAttribute("data-video") << 0;
 				pendingThumbs.set(videoID, thumbElement);
-				//console.log(pendingThumbs.size, "thumbs now queued");
 			}
 		}
 	});
 	
 	function thumbsFromPending() {
-		//console.log("getting pending thumbs");
 		loadThumbs(pendingThumbs)
 		.then(loadedThumbs => {
-			//console.log("returned IDs", loadedThumbs);
 			// Await completion as further intersection changes will readd
 			// loading thumbs to the queue until complete
 			loadedThumbs.forEach((id) => {
@@ -678,11 +681,10 @@ function intersectionChanged(entries, observer) {
 	
 	if (pendingThumbs.size > 0) {
 		// Have thumbs queued, reset delay
-		//console.log("restarting timer")
 		clearTimeout(intersectionTimer);
-		// Once no more thumbs queued for 300ms, get thumbs
+		// Once no more thumbs queued for 200ms, get thumbs
 		// (with queue at time of calling, in case more added)
-		intersectionTimer = setTimeout(thumbsFromPending, 300);
+		intersectionTimer = setTimeout(thumbsFromPending, 200);
 	}
 };
 
@@ -939,7 +941,8 @@ function selectItem(type = "playlist", itemID = null, element = null) {
 		// Mark item selected
 		element.classList.add("selected");
 		// Scroll into view
-		element.scrollIntoView({block: "nearest"});
+		//element.scrollIntoView({block: "nearest"});
+		list.scrollTop = element.offsetTop - listPadding;
 		if (itemID !== null) {
 			// ID supplied, return element
 			return element;

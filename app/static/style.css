@@ -223,6 +223,14 @@ table {
 			align-items: center; /* Vertically align header items */
 			column-gap: 0.5rem;
 		}
+		
+			header li {
+				display: inline-flex;
+			}
+			
+			header .sprite {
+				height: 100%;
+			}
 			
 			.site-logo, header .navigation a {
 				height: 2.75rem; /* Logo & menu item height */
@@ -234,10 +242,6 @@ table {
 				
 				margin-right: 0.5rem;
 			}
-			
-				.site-logo .sprite {
-					height: 100%;
-				}
 
 			header .toggle-menu {
 				grid-column: nav-left / nav-right;
@@ -245,7 +249,7 @@ table {
 				display: none; /* Only shown on small screens */
 			}
 			
-				.toggle-menu button {
+				.toggle-menu button, .loading {
 					width: 2.5rem;
 					height: 2.5rem;
 					background: none;
@@ -253,8 +257,21 @@ table {
 			
 					.toggle-menu .sprite {
 						width: 100%;
-						height: 100%;
 					}
+				
+				@keyframes rotate {
+					from {
+						transform: rotate(0deg);
+					}
+					to {
+						transform: rotate(360deg);
+					}
+				}
+				
+				.loading .sprite {
+					display: none; /* Default hide spinner */
+					animation: rotate 1s infinite linear;
+				}
 			
 			header .navigation {
 				grid-column: nav-left / nav-right;
@@ -277,19 +294,11 @@ table {
 					justify-content: flex-end; /* Align to right edge of header */
 				}
 				
-					.navigation li {
-						display: inline-flex;
-					}
-				
 					.navigation a {
 						/* Vertically align nav items */
 						display: flex;
 						align-items: center;
 					}
-					
-						.navigation .sprite {
-							height: 100%;
-						}
 			
 						header a:hover, header button:hover {
 							filter: drop-shadow(0 0 0.2rem yellow);
@@ -307,6 +316,10 @@ table {
 			
 			header .navigation.toggled {
 				display: flex;
+			}
+			
+			.loading-large {
+				display: none; /* Hide loading spinner on user row */
 			}
 		}
 
@@ -510,6 +523,7 @@ table {
 					grid-area: user;
 					
 					margin-right: auto; /* Only clickable where visible */
+					word-break: break-word; /* Long names can break */
 					color: inherit;
 				}
 				
@@ -603,6 +617,8 @@ table {
 				
 					.description {
 						grid-area: desc-text;
+						
+						word-break: break-word; /* Long lines can break */
 					}
 					
 						.description p {
