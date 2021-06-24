@@ -862,9 +862,9 @@ table {
 			}
 		
 		.playlists {
-			/* Fit at least 3 items, or one if fewer */
+			/* Fit at least 3 items, or one if fewer 
+			   (with sane limits for giant screens */
 			min-height: 3.75rem;
-			/* max-height: 15vh; */
 			max-height: max(15vh, calc(3 *
 						(2.25rem + var(--item-gap)) +
 						2 * (var(--border-offset) +
@@ -881,11 +881,11 @@ table {
 			}
 		
 		.videos {
-			/* Fit at least 10 items, or 1 if fewer */
+			/* Fit at least 10 items, or 1 if fewer
+			   (with sane limits for giant screens */
 			min-height: calc(((var(--thumb-width) / 16) * 9) +
 						2 * (var(--border-offset) +
 							 var(--border-width)));
-			/* max-height: 65vh; */
 			max-height: max(65vh, calc(10 *
 						(((var(--thumb-width) / 16) * 9) + var(--item-gap)) +
 						2 * (var(--border-offset) +

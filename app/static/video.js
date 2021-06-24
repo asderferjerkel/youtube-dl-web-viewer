@@ -64,8 +64,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		// Load video without adding to history, wait for playlist ID
 		await loadVideo(videoID, false);
 		// Select playlist
-		// todo: note changed from current.video.folder_id
-		// update: changed back
 		selectItem("playlist", current.video.folder_id);
 		// Load playlist, select video
 		loadPlaylist(current.video.folder_id);
@@ -107,8 +105,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Playlist clicked
 	playlistList.querySelectorAll(".playlist").forEach(function(playlist) {
 		playlist.addEventListener("click", function() {
-			// Select self
-			let id = selectItem("playlist", null, this);
+			// Select self without scrolling to
+			let id = selectItem("playlist", null, this, false);
 			// Load playlist
 			loadPlaylist(id);
 		});
@@ -242,8 +240,8 @@ function displayFolders(folders) {
 		
 		// Playlist clicked
 		folderElement.addEventListener("click", function() {
-			// Select self
-			let id = selectItem("playlist", null, this);
+			// Select self without scrolling to
+			let id = selectItem("playlist", null, this, false);
 			// Load playlist
 			loadPlaylist(id);
 		});
@@ -356,10 +354,10 @@ function displayPlaylist(playlist) {
 		nameElement.textContent = video.title;
 		videoElement.appendChild(nameElement);
 		
-		// Listen for video being clicked
 		videoElement.addEventListener("click", function() {
-			// Select self
-			let id = selectItem("video", null, this);
+			// Video clicked
+			// Select self without scrolling to
+			let id = selectItem("video", null, this, false);
 			if (displayPrefs.shuffle) {
 				// Reshuffle playlist, starting from clicked video
 				[current.shuffledPlaylist,
@@ -925,7 +923,8 @@ Mark or unmark a list item (video or playlist) as selected
   itemID or element supplied: item will be marked selected
   itemID supplied: returns list item's element
 */
-function selectItem(type = "playlist", itemID = null, element = null) {
+function selectItem(type = "playlist", itemID = null,
+					element = null, scrollTo = true) {
 	let list = (type === "video" ? videoList : playlistList);
 	let attribute = (type === "video" ? "data-video" : "data-playlist");
 	let currentlySelected = list.querySelector(".selected");
@@ -940,9 +939,11 @@ function selectItem(type = "playlist", itemID = null, element = null) {
 	if (element !== null) {
 		// Mark item selected
 		element.classList.add("selected");
-		// Scroll into view
-		//element.scrollIntoView({block: "nearest"});
-		list.scrollTop = element.offsetTop - listPadding;
+		if (scrollTo) {
+			// Scroll into view
+			//element.scrollIntoView({block: "nearest"});
+			list.scrollTop = element.offsetTop - listPadding;
+		}
 		if (itemID !== null) {
 			// ID supplied, return element
 			return element;
