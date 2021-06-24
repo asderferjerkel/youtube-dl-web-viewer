@@ -829,6 +829,7 @@ table {
 		
 		.list-container {
 			--thumb-width: 5.1rem;
+			--item-gap: 0.25rem;
 			--border-offset: 0.25rem;
 			--border-width: 0.5rem;
 			
@@ -864,7 +865,7 @@ table {
 			/* Fit at least 3 items, or one if fewer */
 			min-height: 3.75rem;
 			/* max-height: 15vh; */
-			max-height: max(15vh, calc(9rem +
+			max-height: max(15vh, calc(3 * (3rem + var(--item-gap)) +
 						2 * (var(--border-offset) +
 							 var(--border-width))));
 			margin-bottom: 1rem;
@@ -884,7 +885,8 @@ table {
 						2 * (var(--border-offset) +
 							 var(--border-width)));
 			/* max-height: 65vh; */
-			max-height: calc((10 * (var(--thumb-width) / 16) * 9) +
+			max-height: calc(10 *
+						(((var(--thumb-width) / 16) * 9) + var(--item-gap)) +
 						2 * (var(--border-offset) +
 							 var(--border-width)));
 		}
@@ -914,7 +916,7 @@ table {
 					align-items: center;
 					
 					width: 100%;
-					margin: 5px 0;
+					margin: var(--item-gap) 0;
 					cursor: pointer;
 				}
 					
