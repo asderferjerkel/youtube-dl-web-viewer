@@ -868,7 +868,8 @@ table {
 			max-height: max(15vh, calc(3 *
 						(2.25rem + var(--item-gap)) +
 						2 * (var(--border-offset) +
-							 var(--border-width))));
+							 var(--border-width)) +
+						var(--item-gap)));
 			margin-bottom: 1rem;
 		}
 		
@@ -889,7 +890,8 @@ table {
 			max-height: max(65vh, calc(10 *
 						(((var(--thumb-width) / 16) * 9) + var(--item-gap)) +
 						2 * (var(--border-offset) +
-							 var(--border-width))));
+							 var(--border-width)) +
+						var(--item-gap)));
 		}
 			
 			.videos::before {

@@ -57,7 +57,6 @@
 						for (const t in timers) {
 							// Cancel any active timers
 							if (timers[t] !== null) {
-								console.log("Cancelling timer:", t, timers[t]);
 								// Don't clear variable so can reactivate
 								clearTimeout(timers[t]);
 							}
@@ -65,10 +64,8 @@
 						if (!document["hidden"]) {
 							// Page visible, run any previously active now
 							if (timers.often !== null) {
-								console.log("Reactivating timer: often");
 								updateStatus();
 							} else if (timers.lazy !== null) {
-								console.log("Reactivating timer: lazy");
 								lazyUpdateStatus();
 							}
 						}
@@ -250,7 +247,8 @@
 			async function refreshDatabase(rescan = false) {
 				let endpoint = (rescan ? "rescan" : "refresh")
 				let message = "Database " + endpoint + " started"
-				await loadJSON(endpoint);
+				// Don't wait for return
+				loadJSON(endpoint);
 				addMessage(message, null, true);
 				// Clear timers and update status immediately
 				for (const t in timers) {
