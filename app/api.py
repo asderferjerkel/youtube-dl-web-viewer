@@ -871,22 +871,6 @@ def status():
 					'refresh_due': refresh_due,
 					'data': task})
 
-@blueprint.route('/dismiss')
-@login_required('user', api = True)
-def dismiss():
-	"""
-	Dismiss the last error from appearing in the UI
-	Note: currently dismisses for all users
-	"""
-	try:
-		set_task(status = 0)
-	except sqlite3.OperationalError as e:
-		current_app.logger.error('Failed to dismiss error: ' + str(e))
-		return jsonify({'result': 'error',
-						'message': 'Failed to dismiss error'}), 500
-	
-	return jsonify({'result': 'ok'})
-
 @blueprint.route('/prefs/<string:pref>/<string:value>')
 @login_required('user', api = True)
 def set_preference(pref, value):

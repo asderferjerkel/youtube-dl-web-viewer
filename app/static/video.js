@@ -275,8 +275,9 @@ async function loadPlaylist(playlistID, addHistory = true) {
 	current.playlist.length = 0; // Empty
 	// Sort playlist by play order and create (ordered) array from values
 	// todo: map instead, keeps order
-	Object.keys(playlist.data).sort().forEach(
-		key => current.playlist.push(playlist.data[key]));
+	//Object.keys(playlist.data).sort().forEach(
+	//	key => current.playlist.push(playlist.data[key]));
+	current.playlist = playlist;
 	if (current.video === undefined) {
 		// Only update page URL if no video loaded
 		window.history[addHistory ? "pushState" : "replaceState"](
@@ -351,7 +352,9 @@ function displayPlaylist(playlist) {
 		
 		let nameElement = document.createElement("div");
 		nameElement.className = "name";
-		nameElement.textContent = video.title;
+		// todo: remove
+		nameElement.textContent = index + '. ' + video.title;
+		//nameElement.textContent = video.title;
 		videoElement.appendChild(nameElement);
 		
 		videoElement.addEventListener("click", function() {

@@ -246,8 +246,8 @@
 			
 			async function refreshDatabase(rescan = false) {
 				let endpoint = (rescan ? "rescan" : "refresh")
-				let message = "Database " + endpoint + " started"
-				addMessage(message, null, true);
+				//let message = "Database " + endpoint + " started"
+				//addMessage(message, null, true);
 				// Don't wait for return
 				loadJSON(endpoint);
 				// Clear timers and update status immediately
@@ -279,7 +279,7 @@
 					const action = (typeof(loadFolders) === "function"
 								 ? loadFolders : null);
 					addMessage(task.message, "status", true, "info", null,
-							   "Refresh playlists", action);
+							   "Reload playlists", action);
 					// Return to lazily checking status
 					timers.lazy = setTimeout(lazyUpdateStatus, delay.checkStatus);
 				} else if (task.status === -1) {
