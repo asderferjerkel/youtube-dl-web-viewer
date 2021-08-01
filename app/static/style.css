@@ -826,10 +826,12 @@ table {
 					}
 		
 		.list-container {
-			--thumb-height: 2.8rem;
+			--thumb-width: 5.1rem;
 			--item-gap: 0.25rem;
 			--border-offset: 0.25rem;
 			--border-width: 0.5rem;
+			
+			--thumb-height: calc((var(--thumb-width) / 16) * 9);
 			
 			position: relative;
 			 /* Space for border + a little breathing room */
@@ -872,7 +874,7 @@ table {
 				
 				.list li {
 					display: grid;
-					grid-template-columns: [position] min-content [thumbnail] auto [title] 1fr;
+					grid-template-columns: [position] min-content [thumbnail] var(--thumb-width) [title] 1fr;
 					align-items: center;
 					
 					width: 100%;
@@ -953,7 +955,7 @@ table {
 			.videos {
 				/* Fit at least 10 items, or 1 if fewer
 				   (with sane limits for giant screens */
-				min-height: calc(var(--thumb-height +
+				min-height: calc(var(--thumb-height) +
 							2 * (var(--border-offset) +
 								 var(--border-width)));
 				max-height: max(65vh, calc(10 *
@@ -982,8 +984,8 @@ table {
 					grid-template-columns: [thumb] 1fr;
 					
 					position: relative;
-					height: var(--thumb-height);
 					overflow: hidden;
+					height: var(--thumb-height);
 					
 					background-color: var(--loading);
 				}
@@ -1002,13 +1004,12 @@ table {
 					.video .thumbnail img {
 						grid-column: thumb; /* Overlays number */
 						
-						height: var(--thumb-height);
+						height: 100%;
 					}
 					
 					.video .number {
 						grid-column: thumb;
 						
-						height: var(--thumb-height);
 						/* Oversized play order */
 						font-size: 2.75rem;
 						line-height: 3rem;
