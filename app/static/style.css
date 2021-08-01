@@ -985,7 +985,7 @@ table {
 					
 					position: relative;
 					overflow: hidden;
-					height: var(--thumb-height);
+					/* height: var(--thumb-height); */
 					
 					background-color: var(--loading);
 				}
@@ -1004,11 +1004,15 @@ table {
 					.video .thumbnail img {
 						grid-column: thumb; /* Overlays number */
 						
-						height: 100%;
+						width: var(--thumb-width);
+						height: var(--thumb-height);
 					}
 					
 					.video .number {
 						grid-column: thumb;
+						
+						width: var(--thumb-width);
+						height: var(--thumb-height);
 						
 						/* Oversized play order */
 						font-size: 2.75rem;
