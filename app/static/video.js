@@ -273,11 +273,9 @@ async function loadPlaylist(playlistID, addHistory = true) {
 								  displayPrefs.sort_by,
 								  displayPrefs.sort_direction);
 	current.playlist.length = 0; // Empty
-	// Sort playlist by play order and create (ordered) array from values
-	// todo: map instead, keeps order
-	//Object.keys(playlist.data).sort().forEach(
-	//	key => current.playlist.push(playlist.data[key]));
-	current.playlist = playlist;
+	// Create array by play order
+	Object.keys(playlist.data).forEach(
+		key => current.playlist.push(playlist.data[key]));
 	if (current.video === undefined) {
 		// Only update page URL if no video loaded
 		window.history[addHistory ? "pushState" : "replaceState"](
