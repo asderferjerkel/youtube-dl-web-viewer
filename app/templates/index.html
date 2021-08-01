@@ -6,7 +6,7 @@
 			<video controls autoplay playsinline>
 				<source>
 			</video>
-			<div class="overlay placeholder">
+			<div class="overlay placeholder has-bg">
 				{{ render_sprite('bongo') }}
 				<div>Select a video</div>
 			</div>
@@ -17,7 +17,7 @@
 			</button>
 		</div>
 		
-		<div id="info" class="info-container full-height hidden">
+		<div id="info" class="info-container full-height hidden has-bg">
 			<div class="info">
 				<div class="title"></div>
 				<a class="uploader" target="_blank"></a>
@@ -92,7 +92,7 @@
 				</button>
 			</div>
 		</div>
-		<div class="list-container playlists">
+		<div class="list-container playlists has-bg">
 			<ol id="playlists" class="list">
 			{% if playlists %}
 				{% for playlist in playlists %}
@@ -110,7 +110,7 @@
 			</ol>
 		</div>
 		
-		<div class="list-container videos">
+		<div class="list-container videos has-bg">
 			<ol id="videos" class="list">
 			{% if playlists %}
 				<div class="placeholder">Select a playlist</div>

@@ -21,7 +21,7 @@ html {
 	box-sizing: border-box;
 }
 
-*, *:before, *:after {
+*, *::before, *::after {
 	box-sizing: inherit; /* https://www.paulirish.com/2012/box-sizing-border-box-ftw/ */
 }
 
@@ -67,9 +67,7 @@ body {
 		--error: #932419;
 	}
 	
-	.player .placeholder::before,
-	.list-container::before,
-	.info-container::before {
+	.has-bg::before, .has-bg::after {
 		filter: invert(1); /* Invert background-image colours */
 	}
 }
