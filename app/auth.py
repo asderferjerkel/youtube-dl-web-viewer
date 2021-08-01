@@ -1,7 +1,7 @@
 import functools
 import json
 
-from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for, jsonify
+from flask import Blueprint, flash, g, current_app, redirect, render_template, request, session, url_for, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from flask_wtf import FlaskForm
