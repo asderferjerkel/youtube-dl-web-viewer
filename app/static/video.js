@@ -189,9 +189,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Window resized
 	let resizeTimer;
 	window.addEventListener("resize", () => {
-		clearTimeout(resizeTimer); // Reset delay if resize ongoing
-		// Once resize stopped for 300ms, test description overflow
-		resizeTimer = setTimeout(descriptionOverflow, 300);
+		// If not already expanded
+		if (!fullHeight) {
+			clearTimeout(resizeTimer); // Reset delay if resize ongoing
+			// Once resize stopped for 300ms, test description overflow
+			resizeTimer = setTimeout(descriptionOverflow, 300);
+		}
 	});
 });
 
@@ -343,7 +346,7 @@ function displayPlaylist(playlist) {
 		// Playlist position (only visible if no thumbnail)
 		let position = document.createElement("div");
 		position.className = "number";
-		position.textContent = index;
+		position.textContent = index + 1; // Start from 1
 		thumbElement.appendChild(position);
 		
 		videoElement.appendChild(thumbElement);
@@ -557,6 +560,8 @@ function displayVideo(video) {
 	} else {
 		// Default label
 		info.querySelector(".date-type").textContent = "Uploaded";
+		// Date downloaded as tooltip
+		info.querySelector(".date").title = "Downloaded " + video.modification_time;
 	}
 	
 	// Resolution and/or fps (add suffixes and concat)
@@ -581,13 +586,16 @@ function displayVideo(video) {
 		description.innerText = "";
 	}
 	
-	// Set description container to overflow
-	fullDescription(false);
-	// Show info container
-	infoContainer.classList.remove("hidden");
-	// Test overflow: if yes, fade description and display "show more" link
-	// 				  if no, remove fade and hide "show more" link
-	descriptionOverflow();
+	// Don't fade description if previously expanded
+	if (!fullHeight) {
+		// Set description container to overflow
+		fullDescription(false);
+		// Show info container
+		infoContainer.classList.remove("hidden");
+		// Test overflow: if yes, fade description and display "show more" link
+		// 				  if no, remove fade and hide "show more" link
+		descriptionOverflow();
+	}
 	
 	// Play video
 	playVideo();
