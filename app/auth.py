@@ -128,10 +128,7 @@ def login_user(id):
 	session.clear()
 	session['user_id'] = id
 	# Default display prefs for new session
-	session['display_prefs'] = {'autoplay': True,
-								'shuffle': False,
-								'sort_by': 'playlist_index',
-								'sort_direction': 'desc'}
+	session['display_prefs'] = current_app.config['DISPLAY_PREFS']
 	# Sessions last app.config['PERMANENT_SESSION_LIFETIME']
 	session.permanent = True
 

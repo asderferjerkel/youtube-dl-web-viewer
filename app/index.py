@@ -52,10 +52,7 @@ def index(item_type, item_id):
 	load_item = {'type': item_type, 'id': item_id}
 	
 	# Default display prefs for logged-out users (no cookies stored so resets with page load)
-	display_prefs = {'autoplay': True,
-					 'shuffle': False,
-					 'sort_by': 'modification_time',
-					 'sort_direction': 'desc'}
+	display_prefs = current_app.config['DISPLAY_PREFS']
 	
 	# Logged in users can access the API
 	api_available = False

@@ -58,7 +58,19 @@ SORT_COLUMNS = {
 	'duration': 'Duration'
 	}
 
-# Thumbnail formats:
+# Display settings: defaults for logged-out users and new user sessions
+#	'autoplay':			True or Falsae
+#	'shuffle':			True or False
+#	'sort_by':			A column from SORT_COLUMNS
+#	'sort_direction':	'asc' or 'desc'
+DISPLAY_PREFS = {
+	'autoplay': True,
+	'shuffle': False,
+	'sort_by': 'modification_time',
+	'sort_direction': 'desc'
+}
+
+# Thumbnail formats: scanner will generate small thumbnails in these formats
 #   'key':           Filetype string used to check for Pillow support
 #   'export_format': Filetype string used to export that format
 #   'priority':      Determines the order in which missing formats fall back to

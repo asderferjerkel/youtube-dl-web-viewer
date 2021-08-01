@@ -135,9 +135,9 @@ def refresh_db(rescan = False):
 					isinstance(ts[0], int) and isinstance(ts[1], int) and
 					isinstance(tq, int) and 1 <= tq <= 95 and
 					isinstance(tf, dict)):
-					# THUMBNAIL_EXTENSIONS is a dict,
-					# THUMBNAIL_SIZE is a pair of integers,
-					# THUMBNAIL_QUALITY is integer 1-95, and
+					# THUMBNAIL_EXTENSIONS is a dict
+					# THUMBNAIL_SIZE is a pair of integers
+					# THUMBNAIL_QUALITY is integer 1-95
 					# THUMBNAIL_FORMATS is a dict of formats
 					# Check for Pillow support for desired image formats
 					pillow_features = features.get_supported_codecs() + features.get_supported_modules()
@@ -158,7 +158,7 @@ def refresh_db(rescan = False):
 						app.logger.warning('Thumbnail generation enabled but no supported image formats found')
 				else:
 					with_warnings = True
-					app.logger.warning('Thumbnail generation disabled: THUMBNAIL_SIZE must be integer maxwidth, maxheight; THUMBNAIL_QUALITY must be integer 1-95')
+					app.logger.warning('Thumbnail generation disabled: config.py THUMBNAIL_SIZE must be integer (maxwidth, maxheight); THUMBNAIL_QUALITY must be integer 1-95; THUMBNAIL_EXTENSIONS and THUMBNAIL_QUALITY must be dicts')
 			
 			# Prepare filename parsing
 			filename_parsing = False

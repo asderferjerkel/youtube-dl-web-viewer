@@ -43,6 +43,12 @@ def create_app():
 			'average_rating': 'Rating',
 			'duration': 'Duration'
 			},
+		DISPLAY_PREFS = {
+			'autoplay': True,
+			'shuffle': False,
+			'sort_by': 'modification_time',
+			'sort_direction': 'desc'
+			},
 		THUMBNAIL_FORMATS = {
 			'jpg':  { 'export_format': 'JPEG',
 					  'priority': 0 },
