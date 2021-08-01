@@ -586,12 +586,12 @@ function displayVideo(video) {
 		description.innerText = "";
 	}
 	
+	// Show info container
+	infoContainer.classList.remove("hidden");
 	// Don't fade description if previously expanded
 	if (!fullHeight) {
 		// Set description container to overflow
 		fullDescription(false);
-		// Show info container
-		infoContainer.classList.remove("hidden");
 		// Test overflow: if yes, fade description and display "show more" link
 		// 				  if no, remove fade and hide "show more" link
 		descriptionOverflow();
