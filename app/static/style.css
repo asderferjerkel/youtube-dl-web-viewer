@@ -858,47 +858,7 @@ table {
 					right var(--border-offset) bottom 0;
 				background-repeat: no-repeat;
 			}
-		
-		.playlists {
-			/* Fit at least 3 items, or one if fewer 
-			   (with sane limits for giant screens */
-			min-height: 3.75rem;
-			max-height: max(15vh, calc(3 *
-						(2.25rem + var(--item-gap)) +
-						2 * (var(--border-offset) +
-							 var(--border-width)) +
-						var(--item-gap)));
-			margin-bottom: 1rem;
-		}
-		
-			.playlists::before {
-				background-image:
-					url('horizontal-1.svg'),
-					url('vertical-1.svg'),
-					url('horizontal-2.svg'),
-					url('vertical-2.svg');
-			}
-		
-		.videos {
-			/* Fit at least 10 items, or 1 if fewer
-			   (with sane limits for giant screens */
-			min-height: calc(((var(--thumb-width) / 16) * 9) +
-						2 * (var(--border-offset) +
-							 var(--border-width)));
-			max-height: max(65vh, calc(10 *
-						(((var(--thumb-width) / 16) * 9) + var(--item-gap)) +
-						2 * (var(--border-offset) +
-							 var(--border-width))));
-		}
 			
-			.videos::before {
-				background-image:
-					url('horizontal-3.svg'),
-					url('vertical-3.svg'),
-					url('horizontal-4.svg'),
-					url('vertical-4.svg');
-			}
-	
 			.list {
 				list-style: none;
 				/* Limit to parent and scroll overflow */
@@ -912,7 +872,7 @@ table {
 				
 				.list li {
 					display: grid;
-					grid-template-columns: var(--thumb-width) 1fr;
+					grid-template-columns: [position] min-content [thumbnail] var(--thumb-width) [title] 1fr;
 					align-items: center;
 					
 					width: 100%;
@@ -939,12 +899,34 @@ table {
 					.list .name {
 						margin: 0 0.75rem;
 					}
+		
+			.playlists {
+				/* Fit at least 3 items, or one if fewer 
+				   (with sane limits for giant screens */
+				min-height: 3.75rem;
+				max-height: max(15vh, calc(3 *
+							(2.25rem + var(--item-gap)) +
+							2 * (var(--border-offset) +
+								 var(--border-width)) +
+							var(--item-gap)));
+				margin-bottom: 1rem;
+			}
 			
+				.playlists::before {
+					background-image:
+						url('horizontal-1.svg'),
+						url('vertical-1.svg'),
+						url('horizontal-2.svg'),
+						url('vertical-2.svg');
+				}
+				
 				.playlist {
 					padding: 0.1rem 0;
 				}
 				
 					.playlist .count {
+						grid-column: thumbnail;
+						
 						text-align: center;
 					}
 						
@@ -961,56 +943,84 @@ table {
 						}
 
 					.playlist .name {
+						grid-column: title;
+						
 						text-overflow: ellipsis;
 						overflow: hidden;
 						white-space: nowrap;
 					}
+			
+			.videos {
+				/* Fit at least 10 items, or 1 if fewer
+				   (with sane limits for giant screens */
+				min-height: calc(((var(--thumb-width) / 16) * 9) +
+							2 * (var(--border-offset) +
+								 var(--border-width)));
+				max-height: max(65vh, calc(10 *
+							(((var(--thumb-width) / 16) * 9) + var(--item-gap)) +
+							2 * (var(--border-offset) +
+								 var(--border-width))));
+			}
 				
-					.video .thumbnail {
-						display: grid;
-						grid-template-columns: [thumb] 1fr;
+				.videos::before {
+					background-image:
+						url('horizontal-3.svg'),
+						url('vertical-3.svg'),
+						url('horizontal-4.svg'),
+						url('vertical-4.svg');
+				}
+				
+				.video .position {
+					padding: 0 0.25rem 0 0.1rem;
+					font-size: 0.75rem;
+					color: var(--aside);
+				}
+				
+				.video .thumbnail {
+					display: grid;
+					grid-template-columns: [thumb] 1fr;
+					
+					position: relative;
+					height: calc((var(--thumb-width) / 16) * 9);
+					overflow: hidden;
+					
+					background-color: var(--loading);
+				}
+				
+					.video .duration {
+						position: absolute;
+						right: 0.2rem;
+						bottom: 0.2rem;
+						padding: 0 0.2rem;
 						
-						position: relative;
-						height: calc((var(--thumb-width) / 16) * 9);
-						overflow: hidden;
+						font-size: 0.75rem;
+						background-color: rgba(0, 0, 0, 0.6);
+						color: white;
+					}
+				
+					.video .thumbnail img {
+						grid-column: thumb; /* Overlays number */
 						
-						background-color: var(--loading);
+						height: 100%;
 					}
 					
-						.video .duration {
-							position: absolute;
-							right: 0.2rem;
-							bottom: 0.2rem;
-							padding: 0 0.2rem;
-							
-							font-size: 0.75rem;
-							background-color: rgba(0, 0, 0, 0.6);
-							color: white;
-						}
-					
-						.video .thumbnail img {
-							grid-column: thumb; /* Overlays number */
-							
-							height: 100%;
-						}
+					.video .number {
+						grid-column: thumb;
 						
-						.video .number {
-							grid-column: thumb;
-							
-							/* Oversized play order */
-							font-size: 2.75rem;
-							line-height: 3rem;
-							margin-top: 0.2rem; /* Push slightly out of bottom */
-							margin-left: 0.3rem;
-							opacity: 0.3;
-						}
-						
-					.video .name {
-						overflow: hidden;
-						display: -webkit-box;
-						-webkit-line-clamp: 2;
-						-webkit-box-orient: vertical;
+						/* Oversized play order */
+						font-size: 2.75rem;
+						line-height: 3rem;
+						margin-top: 0.2rem; /* Push slightly out of bottom */
+						margin-left: 0.3rem;
+						opacity: 0.3;
 					}
+					
+				.video .name {
+					overflow: hidden;
+					display: -webkit-box;
+					-webkit-line-clamp: 2;
+					-webkit-box-orient: vertical;
+				}
 
 @media screen and (max-width: 860px) {
 	.container {

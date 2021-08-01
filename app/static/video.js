@@ -310,6 +310,12 @@ function displayPlaylist(playlist) {
 		videoElement.className = "video";
 		videoElement.setAttribute("data-video", video.id);
 		
+		// Playlist position
+		let positionElement = document.createElement("div");
+		positionElement.className = "position";
+		positionElement.textContent = index + 1;
+		videoElement.appendChild(positionElement);
+		
 		let thumbElement = document.createElement("div");
 		thumbElement.className = "thumbnail";
 		
@@ -589,6 +595,7 @@ function displayVideo(video) {
 	// Show info container
 	infoContainer.classList.remove("hidden");
 	// Don't fade description if previously expanded
+	// todo: fix this. only do on small screens?
 	if (!fullHeight) {
 		// Set description container to overflow
 		fullDescription(false);
