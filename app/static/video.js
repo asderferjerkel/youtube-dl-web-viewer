@@ -389,8 +389,8 @@ function displayPlaylist(playlist) {
 		observer.disconnect();
 	}
 	observer = createObserver();
-	videoList.querySelectorAll(".video").forEach((video) => {
-		observer.observe(video);
+	videoList.querySelectorAll(".thumb").forEach((thumb) => {
+		observer.observe(thumb);
 	});
 	
 	if (displayPrefs.shuffle) {
@@ -617,7 +617,6 @@ Load and display thumbnails from a Map of videoID: element
 const thumbsPerRq = 10;
 async function loadThumbs(thumbQueue) {
 	let videoIDs = Array.from(thumbQueue.keys());
-	let loadedThumbs = []
 	// Split into chunks for smaller API responses
 	videoIDs = [...Array(Math.ceil(videoIDs.length / thumbsPerRq))]
 				.map((_, chunkIndex) => 
@@ -628,27 +627,20 @@ async function loadThumbs(thumbQueue) {
 				);
 	
 	// Request each chunk in turn
-	await Promise.all(videoIDs.map(async (chunk) => {
+	videoIDs.map(async (chunk) => {
 		const thumbs = await loadJSON("POST", chunk, "thumbs", thumbFormat);
 		// Loop through requested IDs
 		for (videoID of chunk) {
-			// Add ID to return
-			loadedThumbs.push(videoID);
 			let element = thumbQueue.get(videoID);
-			// Add class to prevent retry if no thumb returned
-			element.classList.add("has-thumb");
 			// Add image data if returned
 			if (videoID in thumbs.data) {
 				element.src = thumbs.data[videoID].d;
-				element.setAttribute("data-format", thumbFormat);
 			}
 			// Stop observing this video
-			observer.unobserve(element.parentNode.parentNode);
+			// (also prevents retry if no thumb returned)
+			observer.unobserve(element);
 		};
-	}));
-	
-	// Return successfully requested IDs
-	return Promise.resolve(loadedThumbs);
+	});
 };
 
 // Watch for changes in visible playlist items and trigger thumbnail loads
@@ -664,34 +656,29 @@ function createObserver(rootElement) {
 	return obs;
 };
 
-let pendingThumbs = new Map();
+const numRecentThumbs = 20; // Load most recent x thumbs seen
+let pendingThumbs = [];
 let intersectionTimer;
 function intersectionChanged(entries, observer) {
 	entries.forEach((entry) => {
 		if (entry.isIntersecting) {
-			// Element now within bounds
-			let thumbElement = entry.target.querySelector(".thumb");
-			if (!thumbElement.classList.contains("has-thumb")) {
-				// Video has no thumb, add to queue
-				let videoID = entry.target.getAttribute("data-video") << 0;
-				pendingThumbs.set(videoID, thumbElement);
-			}
+			// Element now within bounds, add to queue
+			const thumbElement = entry.target;
+			const videoID = thumbElement.parentNode.parentNode
+										.getAttribute("data-video") << 0;
+			pendingThumbs.push([videoID, thumbElement]);
 		}
 	});
 	
 	function thumbsFromPending() {
-		loadThumbs(pendingThumbs)
-		.then(loadedThumbs => {
-			// Await completion as further intersection changes will readd
-			// loading thumbs to the queue until complete
-			loadedThumbs.forEach((id) => {
-				// Remove requested thumb from queue
-				pendingThumbs.delete(id);
-			});
-		});
+		// Get most recent thumbs from queue
+		const recentThumbs = new Map([...pendingThumbs.slice(-numRecentThumbs)]);
+		// Clear queue and load thumbs
+		pendingThumbs.length = 0;
+		loadThumbs(recentThumbs);
 	};
 	
-	if (pendingThumbs.size > 0) {
+	if (pendingThumbs.length > 0) {
 		// Have thumbs queued, reset delay
 		clearTimeout(intersectionTimer);
 		// Once no more thumbs queued for 200ms, get thumbs
