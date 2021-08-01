@@ -350,9 +350,7 @@ function displayPlaylist(playlist) {
 		
 		let nameElement = document.createElement("div");
 		nameElement.className = "name";
-		// todo: remove
-		nameElement.textContent = index + '. ' + video.title;
-		//nameElement.textContent = video.title;
+		nameElement.textContent = video.title;
 		videoElement.appendChild(nameElement);
 		
 		videoElement.addEventListener("click", function() {

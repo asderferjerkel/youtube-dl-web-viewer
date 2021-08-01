@@ -54,7 +54,7 @@ def index(item_type, item_id):
 	# Default display prefs for logged-out users (no cookies stored so resets with page load)
 	display_prefs = {'autoplay': True,
 					 'shuffle': False,
-					 'sort_by': 'playlist_index',
+					 'sort_by': 'modification_time',
 					 'sort_direction': 'desc'}
 	
 	# Logged in users can access the API
