@@ -980,14 +980,9 @@ table {
 				}
 				
 				.video .thumbnail {
-					display: grid;
-					grid-template-columns: [thumb] 1fr;
-					
 					position: relative;
 					overflow: hidden;
 					height: var(--thumb-height);
-					
-					background-color: var(--loading);
 				}
 				
 					.video .duration {
@@ -995,6 +990,7 @@ table {
 						right: 0.2rem;
 						bottom: 0.2rem;
 						padding: 0 0.2rem;
+						z-index: 3;
 						
 						font-size: 0.75rem;
 						background-color: rgba(0, 0, 0, 0.6);
@@ -1002,20 +998,24 @@ table {
 					}
 				
 					.video .thumbnail img {
-						grid-column: thumb; /* Overlays number */
-						
-						width: var(--thumb-width);
+						position: absolute;
+						width: 100%;
+						z-index: 2;
 					}
 					
 					.video .number {
-						grid-column: thumb;
+						position: absolute;
+						width: 100%;
+						height: 100%;
+						background-color: var(--loading);
+						z-index: 1;
 						
 						/* Oversized play order */
 						font-size: 2.75rem;
 						line-height: 3rem;
-						margin-top: 0.2rem; /* Push slightly out of bottom */
-						margin-left: 0.3rem;
-						opacity: 0.3;
+						padding-top: 0.2rem; /* Push slightly out of bottom */
+						padding-left: 0.3rem;
+						color: var(--aside);
 					}
 					
 				.video .name {
