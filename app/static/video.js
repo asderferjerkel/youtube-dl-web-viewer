@@ -214,10 +214,20 @@ async function loadFolders() {
 }
 
 function displayFolders(folders) {
+	const template = document.getElementById("template-playlist");
 	// Create empty list of folders from container
 	let newPlaylistList = playlistList.cloneNode(false);
 	// Add each folder to list
 	folders.forEach((folder) => {
+		let folderElement = template.content.firstElementChild.cloneNode(true);
+		// Add metadata to template
+		folderElement.setAttribute("data-playlist", folder.id);
+		folderElement.querySelector(".number")
+			.textContent = folder.video_count;
+		folderElement.querySelector(".name").textContent = folder.folder_name;
+		
+		/*
+		todo: delete tHIS
 		let folderElement = document.createElement("li");
 		folderElement.className = "playlist";
 		folderElement.setAttribute("data-playlist", folder.id);
@@ -240,6 +250,7 @@ function displayFolders(folders) {
 		nameElement.className = "name";
 		nameElement.textContent = folder.folder_name;
 		folderElement.appendChild(nameElement);
+		*/
 		
 		// Playlist clicked
 		folderElement.addEventListener("click", function() {
@@ -296,9 +307,11 @@ async function loadPlaylist(playlistID, addHistory = true) {
 }
 
 function displayPlaylist(playlist) {
+	// Clear existing playlist
 	current.index = {};
 	current.shuffledPlaylist = undefined;
 	current.shuffledIndex = undefined;
+	const template = document.getElementById("template-video");
 	// Create empty playlist from container
 	let newVideoList = videoList.cloneNode(false);
 	// Add each video to list
@@ -306,6 +319,16 @@ function displayPlaylist(playlist) {
 		// Create inverse video.id: index mapping to look up play order by ID
 		current.index[video.id] = index;
 		
+		let videoElement = template.content.firstElementChild.cloneNode(true);
+		videoElement.setAttribute("data-video", video.id);
+		
+		videoElement.querySelector(".position").textContent = index + 1;
+		videoElement.querySelector(".duration").textContent = video.duration;
+		videoElement.querySelector(".number").textContent = index + 1;
+		videoElement.querySelector(".name").textContent = video.title;
+		
+		/*
+		todo: deLTE this
 		let videoElement = document.createElement("li");
 		videoElement.className = "video";
 		videoElement.setAttribute("data-video", video.id);
@@ -327,23 +350,23 @@ function displayPlaylist(playlist) {
 			thumbElement.appendChild(durationElement);
 		}
 		
-		/*
-		todo: delete
+		
+		//todo: delete thumb
 		// Add thumbnail if present, else playlist index
-		if (video.thumbnail != null) {
-			let thumbnail = document.createElement("img");
-			thumbnail.src = video.thumbnail;
-			// Only load thumbs near viewport
-			thumbnail.loading = "lazy";
-			thumbElement.appendChild(thumbnail);
-		} else {
-			thumbElement.classList.add("count");
-			let thumbnail = document.createElement("div");
-			thumbnail.className = "number";
-			thumbnail.textContent = index;
-			thumbElement.appendChild(thumbnail);
-		}
-		*/
+		//if (video.thumbnail != null) {
+		//	let thumbnail = document.createElement("img");
+		//	thumbnail.src = video.thumbnail;
+		//	// Only load thumbs near viewport
+		//	thumbnail.loading = "lazy";
+		//	thumbElement.appendChild(thumbnail);
+		//} else {
+		//	thumbElement.classList.add("count");
+		//	let thumbnail = document.createElement("div");
+		//	thumbnail.className = "number";
+		//	thumbnail.textContent = index;
+		//	thumbElement.appendChild(thumbnail);
+		//}
+		
 		// Empty placeholder for thumbnail
 		let thumbnail = document.createElement("img");
 		thumbnail.className = "thumb";
@@ -361,6 +384,7 @@ function displayPlaylist(playlist) {
 		nameElement.className = "name";
 		nameElement.textContent = video.title;
 		videoElement.appendChild(nameElement);
+		*/
 		
 		videoElement.addEventListener("click", function() {
 			// Video clicked

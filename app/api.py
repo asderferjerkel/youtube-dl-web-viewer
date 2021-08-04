@@ -158,7 +158,7 @@ def refresh_db(rescan = False):
 						app.logger.warning('Thumbnail generation enabled but no supported image formats found')
 				else:
 					with_warnings = True
-					app.logger.warning('Thumbnail generation disabled: config.py THUMBNAIL_SIZE must be integer (maxwidth, maxheight); THUMBNAIL_QUALITY must be integer 1-95; THUMBNAIL_EXTENSIONS and THUMBNAIL_QUALITY must be dicts')
+					app.logger.warning('Thumbnail generation disabled: config.py THUMBNAIL_SIZE must be integer maxwidth, maxheight; THUMBNAIL_QUALITY must be integer 1-95; THUMBNAIL_EXTENSIONS and THUMBNAIL_QUALITY must be dicts')
 			
 			# Prepare filename parsing
 			filename_parsing = False

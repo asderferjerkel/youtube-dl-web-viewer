@@ -120,6 +120,29 @@
 			</ol>
 		</div>
 	</section>
+	
+	<section class="templates">
+		<template id="template-playlist">
+			<li class="playlist">
+				<div class="count">
+					<div class="number"></div>
+					<div class="caption">videos</div>
+				</div>
+				<div class="name"></div>
+			</li>
+		</template>
+		<template id="template-video">
+			<li class="video">
+				<div class="position"></div>
+				<div class="thumbnail">
+					<div class="duration"></div>
+					<img class="thumb" width="{{ config.THUMBNAIL_SIZE[0] }}" height="{{ config.THUMBNAIL_SIZE[1] }}" src="{{ url_for('static', filename = 'empty.gif') }}" alt="">
+					<div class="number"></div>
+				</div>
+				<div class="name"></div>
+			</li>
+		</template>
+	</section>
 
 	<script>
 		const apiAvailable = {{ api_available | tojson }};
