@@ -651,7 +651,7 @@ async function loadThumbs(thumbQueue) {
 				);
 	
 	// Request each chunk in turn
-	videoIDs.map(async (chunk) => {
+	await Promise.all(videoIDs.map(async (chunk) => {
 		const thumbs = await loadJSON("POST", chunk, "thumbs", thumbFormat);
 		// Loop through requested IDs
 		for (videoID of chunk) {
@@ -664,7 +664,7 @@ async function loadThumbs(thumbQueue) {
 			// (also prevents retry if no thumb returned)
 			observer.unobserve(element);
 		};
-	});
+	}));
 };
 
 // Watch for changes in visible playlist items and trigger thumbnail loads
@@ -672,9 +672,7 @@ let observer = {};
 function createObserver(rootElement) {
 	obs = new IntersectionObserver(intersectionChanged, {
 		root: rootElement,
-		// Extend height by 50% top and bottom so thumbs out of view load
-		rootMargin: "0%",
-		threshold: 0.2, // Proportion of item inside margin
+		threshold: 0.2, // Trigger when proportion visible
 		delay: 100 // Don't trigger events too often
 	});
 	return obs;
