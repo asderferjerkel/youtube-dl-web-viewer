@@ -673,8 +673,8 @@ function createObserver(rootElement) {
 	obs = new IntersectionObserver(intersectionChanged, {
 		root: rootElement,
 		// Extend height by 50% top and bottom so thumbs out of view load
-		rootMargin: "50%",
-		threshold: 0.5, // Trigger when half of item inside margin
+		rootMargin: "0%",
+		threshold: 0.2, // Proportion of item inside margin
 		delay: 100 // Don't trigger events too often
 	});
 	return obs;
