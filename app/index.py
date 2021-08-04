@@ -51,17 +51,15 @@ def index(item_type, item_id):
 	# Load item from URL on page load
 	load_item = {'type': item_type, 'id': item_id}
 	
-	# Default display prefs for logged-out users (no cookies stored so resets with page load)
-	display_prefs = current_app.config['DISPLAY_PREFS']
-	
-	# Logged in users can access the API
+	# Logged out: no API, default display prefs (no cookies resets on refresh)
 	api_available = False
+	display_prefs = current_app.config['DISPLAY_PREFS']
+	# Logged in: API available, display prefs stored per session
 	if g.user is not None:
 		if params['last_refreshed'] != 0:
 			# Autorefresh doesn't trigger until db has been refreshed once
 			api_available = True
 		if 'display_prefs' in session:
-			# Logged in users store display prefs per session
 			display_prefs = session['display_prefs']
 	
 	# Load thumbs if generation enabled
@@ -69,7 +67,7 @@ def index(item_type, item_id):
 	if params['generate_thumbs'] == 1:
 		get_thumbs = True
 	
-	return render_template('index.html', playlists = playlists, load_item = load_item, api_available = api_available, display_prefs = display_prefs, web_path = params['web_path'], get_thumbs = get_thumbs, sort_columns = current_app.config['SORT_COLUMNS'])
+	return render_template('index.html', playlists = playlists, load_item = load_item, api_available = api_available, display_prefs = display_prefs, web_path = params['web_path'], get_thumbs = get_thumbs)
 
 @blueprint.route('/log', methods=('GET', 'POST'))
 @login_required('admin')

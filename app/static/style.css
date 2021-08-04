@@ -997,9 +997,11 @@ table {
 						color: white;
 					}
 				
-					.video .thumbnail img {
+					.video .thumb {
 						position: absolute;
+						/* Take aspect ratio from width+height attributes */
 						width: 100%;
+						height: auto;
 						z-index: 2;
 					}
 					
