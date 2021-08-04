@@ -6,7 +6,7 @@ instance/
 # test data
 testvideos/
 # virtualenv (create separately on remote)
-venv/
+venv*/
 # build stuff
 dist/
 build/
