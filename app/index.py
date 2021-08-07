@@ -34,7 +34,7 @@ def index(item_type, item_id):
 	try:
 		params = get_params()
 	except sqlite3.OperationalError as e:
-		flash('Failed to get params')
+		flash('Failed to get params: Database error')
 		current_app.logger.error('Failed to get params: ' + str(e))
 	
 	# Get list of playlists from database
@@ -42,7 +42,7 @@ def index(item_type, item_id):
 		playlists = list_folders()
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to list playlists: ' + str(e))
-		flash('Failed to list playlists')
+		flash('Failed to list playlists: Database error')
 		playlists = None
 	
 	if len(playlists) == 0:
@@ -87,6 +87,6 @@ def error_log():
 	try:
 		log = get_log()
 	except sqlite3.OperationalError:
-		flash('Could not get log')
+		flash('Could not load log: Database error')
 	
 	return render_template('error_log.html', title = 'Error log', log = log, form = form)

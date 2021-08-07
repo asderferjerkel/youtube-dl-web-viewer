@@ -81,6 +81,12 @@ class LogToDB(logging.Handler):
 		else:
 			db.commit()
 
+def column_exists(table, column):
+	"""Returns True if both the provided table and column exist"""
+	query = 'SELECT COUNT(*) FROM pragma_table_info( ? ) WHERE name = ?'
+	col_count = get_db().execute(query, (table, column)).fetchone()[0]
+	return col_count == 1
+
 def clear_log():
 	"""Clear the error log"""
 	db = get_db()
@@ -97,8 +103,7 @@ def get_params():
 	params = get_db().execute('SELECT * FROM params ORDER BY rowid LIMIT 1').fetchone()
 	if params is None:
 		raise sqlite3.OperationalError('params table is empty')
-	else:
-		return params
+	return params
 
 class InitForm(FlaskForm):
 	submit = SubmitField('Initialise database')
@@ -133,8 +138,8 @@ def init():
 		
 		message = 'Creating a blank database.'
 	
-	# If POST request and form is valid
 	if form.validate_on_submit():
+		# POST request and form is valid
 		try:
 			create_db()
 		except FileNotFoundError as err:
@@ -147,4 +152,5 @@ def init():
 	
 	# Warn if development keys are being used
 	check_conf()
+	
 	return render_template('init.html', title = 'Create database', form = form, message = message)

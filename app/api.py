@@ -23,7 +23,7 @@ except ImportError:
 	Image = None
 	features = None
 
-from app.db import get_db, get_params
+from app.db import get_db, get_params, column_exists
 from app.auth import login_required
 from app.helpers import format_duration
 
@@ -57,7 +57,8 @@ def get_task():
 	Returns the currently running task.
 	status = 0 (not running), 1 (running), -1 (error)
 	"""
-	return get_db().execute('SELECT * FROM tasks ORDER BY rowid LIMIT 1').fetchone()
+	query = 'SELECT * FROM tasks ORDER BY rowid LIMIT 1'
+	return get_db().execute(query).fetchone()
 
 def set_task(status = 0, folder = None, of_folders = None, file = None, of_files = None, message = None):
 	"""
@@ -65,14 +66,11 @@ def set_task(status = 0, folder = None, of_folders = None, file = None, of_files
 	Specify status = 0 (not running, default), 1 (running), -1 (error); everything else is blanked unless supplied
 	"""
 	db = get_db()
-	db.execute('UPDATE tasks SET status = ?, folder = ?, of_folders = ?, file = ?, of_files = ?, message = ? ORDER BY rowid LIMIT 1', (
-		status,
-		folder,
-		of_folders,
-		file,
-		of_files,
-		message
-		))
+	query = ('UPDATE tasks SET '
+			 'status = ?, folder = ?, of_folders = ?, file = ?, '
+			 'of_files = ?, message = ? '
+			 'ORDER BY rowid LIMIT 1')
+	db.execute(query, (status, folder, of_folders, file, of_files, message))
 	db.commit()
 
 def refresh_db(rescan = False):
@@ -91,11 +89,17 @@ def refresh_db(rescan = False):
 		app = current_app._get_current_object()
 		with app.app_context():
 			db = get_db()
-			
 			try:
 				params = get_params()
 			except sqlite3.OperationalError as e:
 				raise sqlite3.OperationalError('Refresh: Could not get settings') from e
+			
+			# Lock running task
+			try:
+				set_task(status = 1, message = 'Initialising refresh')
+			except sqlite3.OperationalError as e:
+				# Fail if can't set lock
+				raise sqlite3.OperationalError('Refresh: Could not lock task') from e
 			
 			if rescan:
 				app.logger.debug('Full rescan, clearing tables')
@@ -107,13 +111,6 @@ def refresh_db(rescan = False):
 					raise sqlite3.OperationalError('Refresh: Could not clear existing data') from e
 				else:
 					db.commit()
-			
-			# Lock running task
-			try:
-				set_task(status = 1, message = 'Initialising refresh')
-			except sqlite3.OperationalError as e:
-				# Fail if can't set lock
-				raise sqlite3.OperationalError('Refresh: Could not lock task') from e
 			
 			# Compile non-alphanumeric regex for sortable title
 			non_alpha = re.compile('[\W_]+', re.UNICODE)
@@ -434,9 +431,6 @@ def refresh_db(rescan = False):
 								elif key == '{date}':
 									try:
 										video['upload_date'] = datetime.strptime(str(value), '%Y%m%d')
-									#if re.fullmatch(r'\d{8}', str(value)):
-									#	video['upload_date'] = str(value)
-									#else:
 									except ValueError:
 										with_warnings = True
 										app.logger.warning('Refresh: Filename variable {date} is not in YYYYMMDD format: "' + str(value) + '"')
@@ -481,10 +475,7 @@ def refresh_db(rescan = False):
 										app.logger.warning('Refresh: Metadata field "' + str(key) + '" is not a list: "' + str(mj.get(key)) + '"')
 								
 								# Validate weirdos
-								# re.fullmatch() raises exception if not string so check exists and coerce first
-								#if mj.get('upload_date'):
 								try:
-									#upload_date = str(mj.get('upload_date')) if re.fullmatch(r'\d{8}', str(mj.get('upload_date'))) else upload_date
 									video['upload_date'] = datetime.strptime(str(mj.get('upload_date')), '%Y%m%d') if mj.get('upload_date') else video['upload_date']
 								except ValueError:
 									with_warnings = True
@@ -595,7 +586,7 @@ def refresh_db(rescan = False):
 					set_task(status = 0, message = message + "\n" + stats)
 				except sqlite3.OperationalError:
 					app.logger.error('Refresh: Could not set task to completed')
-	
+		
 	threading.Thread(target = run_refresh_db(rescan)).start()
 
 def add_folder(folder_name, folder_path, video_count):
@@ -605,11 +596,9 @@ def add_folder(folder_name, folder_path, video_count):
 	Returns the folder's unique ID
 	"""
 	db = get_db()
-	db.execute('INSERT INTO folders (folder_name, folder_path, video_count) VALUES (?, ?, ?)', (
-		folder_name,
-		folder_path,
-		video_count
-		))
+	query = ('INSERT INTO folders (folder_name, folder_path, video_count) '
+			 'VALUES (?, ?, ?)')
+	db.execute(query, (folder_name, folder_path, video_count))
 	id = db.execute('SELECT last_insert_rowid() FROM folders').fetchone()[0]
 	db.commit()
 	return id
@@ -617,7 +606,8 @@ def add_folder(folder_name, folder_path, video_count):
 def update_folder(id, video_count):
 	"""Update the number of videos in a folder by its ID"""
 	db = get_db()
-	db.execute('UPDATE folders SET video_count = ? WHERE id = ?', (video_count, id))
+	query = 'UPDATE folders SET video_count = ? WHERE id = ?'
+	db.execute(query, (video_count, id))
 	db.commit()
 
 def add_video(video):
@@ -627,34 +617,30 @@ def add_video(video):
 	Returns the video's unique ID
 	"""
 	db = get_db()
-	db.execute('INSERT INTO videos (folder_id, filename, thumbnail, thumbnail_format, position, playlist_index, video_id, video_url, title, sort_title, description, upload_date, modification_time, uploader, uploader_url, duration, view_count, like_count, dislike_count, average_rating, categories, tags, height, vcodec, video_format, fps) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (
-		video['folder_id'],
-		video['filename'],
-		video['thumbnail'],
-		video['thumbnail_format'],
-		video['position'],
-		video['playlist_index'],
-		video['id'],
-		video['webpage_url'],
-		video['title'],
-		video['sort_title'],
-		video['description'],
-		video['upload_date'],
-		video['modification_time'],
-		video['uploader'],
-		video['uploader_url'],
-		video['duration'],
-		video['view_count'],
-		video['like_count'],
-		video['dislike_count'],
-		video['average_rating'],
-		video['categories'],
-		video['tags'],
-		video['height'],
-		video['vcodec'],
-		video['video_format'],
-		video['fps']
-		))
+	query = ('INSERT INTO videos ('
+			 'folder_id, filename, thumbnail, thumbnail_format, position, '
+			 'playlist_index, video_id, video_url, title, sort_title, '
+			 'description, upload_date, modification_time, uploader, '
+			 'uploader_url, duration, view_count, like_count, dislike_count, '
+			 'average_rating, categories, tags, height, vcodec, video_format, '
+			 'fps) VALUES ('
+				 '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
+				 '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
+			 ')')
+	
+	db.execute(query, (video['folder_id'], video['filename'],
+					   video['thumbnail'], video['thumbnail_format'],
+					   video['position'], video['playlist_index'],
+					   video['id'], video['webpage_url'], video['title'],
+					   video['sort_title'], video['description'],
+					   video['upload_date'], video['modification_time'],
+					   video['uploader'], video['uploader_url'],
+					   video['duration'], video['view_count'],
+					   video['like_count'], video['dislike_count'],
+					   video['average_rating'], video['categories'],
+					   video['tags'], video['height'], video['vcodec'],
+					   video['video_format'], video['fps']))
+					   
 	id = db.execute('SELECT last_insert_rowid() FROM folders').fetchone()[0]
 	db.commit()
 	return id
@@ -675,12 +661,10 @@ def add_thumbnail(video_id, thumb_format, thumb_data):
 		raise KeyError('No priority configured for format') from e
 	
 	db = get_db()
-	db.execute('INSERT INTO thumbs (video_id, thumb_format, thumb_data, format_priority) VALUES (?, ?, ?, ?)', (
-		video_id,
-		thumb_format,
-		thumb_data,
-		format_priority
-		))
+	query = ('INSERT INTO thumbs ('
+			 'video_id, thumb_format, thumb_data, format_priority) '
+			 'VALUES (?, ?, ?, ?)')
+	db.execute(query, (video_id, thumb_format, thumb_data, format_priority))
 	db.commit()
 
 def list_folders():
@@ -688,9 +672,12 @@ def list_folders():
 	Returns a list of folders with their ID, name, path and video count
 	Sorts by folder path for tree then name order
 	"""
-	return get_db().execute('SELECT * FROM folders ORDER BY folder_path ASC').fetchall()
+	query = 'SELECT * FROM folders ORDER BY folder_path ASC'
+	return get_db().execute(query).fetchall()
 
-def list_videos(folder_id, sort_by = 'playlist_index', sort_direction = 'desc'):
+def list_videos(folder_id, sort_by = 'playlist_index',
+				sort_direction = 'desc'):
+	# todo: can we remove defaults? endpoint provides em
 	"""
 	Returns a sorted list of videos with their ID, title, duration and filename
 	"""
@@ -699,32 +686,35 @@ def list_videos(folder_id, sort_by = 'playlist_index', sort_direction = 'desc'):
 	except ValueError as e:
 		raise ValueError('folder_id not an integer') from e
 	
-	if sort_by not in current_app.config['SORT_COLUMNS'].keys():
-		raise ValueError('Column not allowed for sorting')
+	# Check the column exists and is allowed for sorting
+	if ((not column_exists('videos', sort_by)) or
+		sort_by not in current_app.config['SORT_COLUMNS'].keys()):
+		raise ValueError('Column unknown or not enabled for sort')
 	
-	if sort_direction == 'asc':
-		direction_string = ' ASC'
-	elif sort_direction == 'desc':
-		direction_string = ' DESC'
+	if sort_direction in ['asc', 'desc']:
+		direction_string = sort_direction.upper()
 	else:
 		raise ValueError('Sort direction must be "asc" or "desc"')
 	
-	sort_string = ' ORDER BY ' + sort_by + direction_string
+	sort_string = f"{sort_by} {direction_string} "
 	if sort_by not in ['playlist_index', 'position', 'title']:
 		# Secondary sorts for all but the above in case of dupe/missing values
-		sort_string += (', playlist_index' + direction_string +
-					    ', position' + direction_string)
+		sort_string += (f", playlist_index {direction_string} "
+						f", position {direction_string } ")
 	# All sorts finally fall back to ID 
-	sort_string += ', id' + direction_string
+	sort_string += f", id {direction_string}"
 	
-	return get_db().execute('SELECT id, title, duration, filename FROM videos WHERE folder_id = ?' + sort_string, (folder_id, )).fetchall()
+	query = ('SELECT id, title, duration, filename '
+			 'FROM videos WHERE folder_id = ? '
+			f"ORDER BY {sort_string}")
+	return get_db().execute(query, (folder_id, )).fetchall()
 
 def get_video(id):
 	"""Return a single video"""
 	try:
 		id = int(id)
 	except ValueError as e:
-		raise ValueError('id not an integer') from e
+		raise ValueError('ID is not an integer') from e
 	
 	query = ('SELECT videos.folder_id, videos.id, videos.filename, '
 			 'videos.thumbnail, videos.thumbnail_format, videos.video_id, '
@@ -739,7 +729,6 @@ def get_video(id):
 			 'videos.fps, folders.folder_path, folders.folder_name '
 			 'FROM videos INNER JOIN folders ON videos.folder_id = folders.id '
 			 'WHERE videos.id = ?')
-	
 	return get_db().execute(query, (id, )).fetchone()
 
 def get_thumbs(image_format, ids):
@@ -752,34 +741,22 @@ def get_thumbs(image_format, ids):
 	max_ids = 100
 	
 	if len(ids) > max_ids:
-		raise TypeError('Too many ids: max ' + str(max_ids) + ' per query, ' + str(len(ids)) + ' were provided')
+		raise ValueError('Too many IDs: max ' + str(max_ids) +
+						' per query, ' + str(len(ids)) + ' were provided')
 	if image_format not in current_app.config['THUMBNAIL_FORMATS'].keys():
-		current_app.logger.info('Thumbnail format "' + str(image_format) + '" not recognised, falling back to jpg')
+		current_app.logger.info('Thumbnail format "' + str(image_format) +
+								'" not recognised, falling back to jpg')
 		image_format = 'jpg'
 	try:
 		ids = [int(id) for id in ids]
 	except ValueError as e:
-		raise ValueError('ids must be integers') from e
-	
-	"""query = (f"SELECT all_thumbs.video_id, all_thumbs.format_priority, "
-			 f"       all_thumbs.id, thumb_format, thumb_data "
-			 f"FROM thumbs all_thumbs "
-			 f"JOIN( "
-			 f"		SELECT id, video_id, "
-			 f"			   MAX(format_priority) as format_priority "
-			 f"		FROM thumbs "
-			 f"		WHERE video_id in ({', '.join(['?']*len(ids))}) "
-			 f"		AND format_priority <= ? "
-			 f"		GROUP BY video_id "
-			 f"	   ) AS subset_thumbs "
-			 f"ON all_thumbs.id = subset_thumbs.id "
-			 f"ORDER BY subset_thumbs.video_id ASC ")"""
+		raise ValueError('IDs must be integers') from e
 	
 	# Get the best format available up to the requested max for each ID
 	try:
 		max_priority = int(current_app.config['THUMBNAIL_FORMATS'][image_format]['priority'])
 	except ValueError as e:
-		raise ValueError('Priority in THUMBNAIL_FORMATS not an integer')
+		raise TypeError('THUMBNAIL_FORMATS priority not an integer')
 	
 	query = ('SELECT video_id, thumb_format, thumb_data, '
 			 'MAX(format_priority) as format_priority '
@@ -788,33 +765,57 @@ def get_thumbs(image_format, ids):
 			 'GROUP BY video_id')
 	
 	return get_db().execute(query, (max_priority, *ids)).fetchall()
-	
-	# none of this shit:
+
+def search_videos(field, search_query):
 	"""
-	def filter_template(format_name, data_column):
-		# If BLOB column has data, return format and data
-		return (f"WHEN LENGTH({data_column}) IS NOT NULL THEN "
-				f"'{format_name}' AS image_format, "
-				f"{data_column} AS data ")
-	
-	filter_format = ''
-	if image_format == 'webp':
-		# Prefer webp if requested
-		filter_format += filter_template('webp', 'thumb_small_webp')
-	# Fallback to jpg
-	filter_format += filter_template('jpg', 'thumb_small_jpg')
-	# Fallback to nothing
-	filter_format += 'ELSE NULL AS image_format'
-	
-	query = (f"SELECT id, "
-			 f"  CASE "
-			 f"    {filter_format} "
-			 f"  END "
-			 f"FROM videos"
-			 f"WHERE id in ({', '.join(['?']*len(ids))})")
-	
-	return get_db().execute(query, (ids, )).fetchall()
+	List videos matching a fulltext query in the specified field
+	Matches individual space-separated strings of minimum 3 characters
+	Surround multiple strings with double quotes to match a phrase
 	"""
+	# Sane maximum search query length
+	max_query_length = 255
+	
+	# todo: move stuff like this into app init
+	try:
+		max_results = int(current_app.config['MAX_SEARCH_RESULTS'])
+	except ValueError as e:
+		raise TypeError('MAX_SEARCH_RESULTS not an integer')
+	
+	if (
+		field != 'all' and (
+			# Check the column exists and is allowed for searching
+			(not column_exists('videos_fts', field)) or
+			field not in current_app.config['SEARCH_COLUMNS'].keys()
+		)
+	):
+		raise ValueError('Search field unknown or not enabled for search')
+	
+	if len(search_query) > 255:
+		raise ValueError('Query too long: max ' + str(max_query_length) +
+						' characters, ' + str(len(search_query)) +
+						' were provided')
+	
+	col_weights = ''
+	if field == 'all':
+		# Search entire table
+		field = 'videos_fts'
+		# Apply custom column weighting
+		if isinstance(
+			current_app.config.get('SEARCH_COLUMN_WEIGHTING'), tuple):
+			col_weights = (f"AND rank MATCH 'bm25"
+						   f"{current_app.config['SEARCH_COLUMN_WEIGHTING']}"
+						   f"' ")
+		else:
+			current_app.logger.warning('SEARCH_COLUMN_WEIGHTING not tuple, '
+									   'custom column weights disabled')
+	
+	query = ('SELECT rowid, title, rank, '
+			 'snippet(videos_fts, -1, "<b>", "</b>", "...", 32) AS snippet '
+			f"FROM videos_fts WHERE {field} MATCH ? {col_weights}"
+			 'ORDER BY rank LIMIT ?')
+	
+	return get_db().execute(query, (search_query, max_results)).fetchall()
+
 
 @blueprint.route('/refresh')
 @login_required('user', api = True)
@@ -827,7 +828,7 @@ def refresh():
 	except (BlockingIOError, sqlite3.OperationalError) as e: # todo: also add thread error
 		current_app.logger.error('Failed to start refresh: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': str(e)}), 500
+						'message': str(e)}), 500 # Inherited from parent
 	
 	return jsonify({'result': 'ok'})
 
@@ -841,7 +842,7 @@ def rescan():
 	except (BlockingIOError, sqlite3.OperationalError) as e: # todo: also add thread error
 		current_app.logger.error('Failed to start rescan: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': str(e)}), 500
+						'message': str(e)}), 500 # Inherited from parent
 
 	return jsonify({'result': 'ok'})
 
@@ -855,7 +856,8 @@ def status():
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to get status: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to get status'}), 500
+						'message': 'Failed to get status: ' +
+						'Database error'}), 500
 	
 	# Convert sqlite3.Row object to dict for json
 	task = {key: task[key] for key in task.keys()}
@@ -887,13 +889,14 @@ def set_preference(pref, value):
 				value = subs[value]
 			if 'display_prefs' not in session:
 				return jsonify({'status': 'error',
-								'message': 'Preferences missing from session, log out and in again'}), 500
+								'message': 'Preferences missing from ' +
+								'session, log out and in again'}), 400
 		else:
 			return jsonify({'status': 'error',
-							'message': 'Unknown value for preference'}), 500
+							'message': 'Unknown value for preference'}), 400
 	else:
 		return jsonify({'status': 'error',
-						'message': 'Unknown preference'}), 500
+						'message': 'Unknown preference'}), 400
 	
 	session['display_prefs'][pref] = value
 	return jsonify({'result': 'ok',
@@ -903,22 +906,25 @@ def set_preference(pref, value):
 @blueprint.route('/playlists')
 @login_required('guest', api = True)
 def playlists():
-	"""List playlist IDs, names and video counts"""
+	"""
+	List playlists with their ID, name and video count, sorted alphabetically
+	"""
 	try:
 		folders = list_folders()
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to list playlists: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to list playlists'}), 500
+						'message': 'Failed to list playlists: ' +
+						'Database error'}), 500
 	
 	if len(folders) == 0:
-		current_app.logger.info('No playlists in database')
 		return jsonify({'result': 'error',
 						'message': 'No playlists'}), 404
 	
 	# Convert list of sqlite3.Row objects to dict of dicts indexed by order
 	# added to DB, removing folder path
 	# todo: i think we can get rid of .keys() most everywhere
+	# or maybe not, could do key: value in row.items() bit nicer looking
 	folders = {index: {key: row[key] for key in row.keys() if key != 'folder_path'} for index, row in enumerate(folders)}
 	
 	return jsonify({'result': 'ok',
@@ -929,32 +935,41 @@ def playlists():
 @blueprint.route('/playlist/<int:folder_id>/<string:sort_by>/<string:sort_direction>')
 @login_required('guest', api = True)
 def playlist(folder_id, sort_by, sort_direction):
-	"""List videos in a playlist"""
+	"""
+	List videos in a playlist by its ID
+	Returns a dict of dicts indexed by the specified sort column and direction
+	"""
 	try:
 		params = get_params()
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to get params: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to get params'})
+						'message': 'Failed to get params: ' +
+						'Database error'}), 500
 	
 	try:
 		videos = list_videos(folder_id, sort_by, sort_direction)
+	except ValueError as e:
+		return jsonify({'result': 'error',
+						'message': 'Failed to get playlist: ' +
+						str(e)}), 400 # Inherited from parent
+	except TypeError as e:
+		return jsonify({'result': 'error',
+						'message': 'Playlist does not exist'}), 404
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to get playlist: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to list videos'}), 500
-	except TypeError as e:
-		current_app.logger.info('Failed to get playlist: ' + str(e))
-		return jsonify({'result': 'error',
-						'message': 'Playlist does not exist'}), 404
+						'message': 'Failed to list videos: ' +
+						'Database error'}), 500
 	
 	if len(videos) == 0:
-		current_app.logger.info('No playlist returned')
 		return jsonify({'result': 'error',
 						'message': 'Playlist does not exist'}), 404
 	
 	# Convert list of sqlite3.Row objects to dict of dicts indexed by
 	# sort order, excluding filename
+	
+	# todo: why can't this just be a non-indexed list, json arrays are ordered no?
 	videos = {index: {key: row[key] for key in row.keys() if key != 'filename'} for index, row in enumerate(videos)}
 	
 	for video in videos.values():
@@ -974,25 +989,30 @@ def video(video_id):
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to get params: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to get params'})
+						'message': 'Failed to get params: ' +
+						'Database error'}), 500
 	
 	try:
 		video = get_video(video_id)
+	except ValueError as e:
+		return jsonify({'result': 'error',
+						'message': 'Failed to get video: ' +
+						str(e)}), 400 # Inherited from parent
+	except TypeError as e:
+		return jsonify({'result': 'error',
+						'message': 'Video does not exist'}), 404
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to get video: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to get video'}), 500
-	except TypeError as e:
-		current_app.logger.info('Failed to get video: ' + str(e))
-		return jsonify({'result': 'error',
-						'message': 'Video does not exist'}), 404
+						'message': 'Failed to get video: ' +
+						'Database error'}), 500
 	
 	if video is None:
 		current_app.logger.info('No video returned')
 		return jsonify({'result': 'error',
 						'message': 'Video does not exist'}), 404
 	
-	# Convert sqlite3.Row object to dict for json
+	# sqlite3.Row to dict for json
 	video = {key: video[key] for key in video.keys()}
 	
 	# Generate URLs for video file and thumbnail
@@ -1038,17 +1058,84 @@ def thumbs(image_format):
 	
 	try:
 		thumbnails = get_thumbs(image_format, video_ids)
-	except (TypeError, ValueError) as e:
-		current_app.logger.info('Failed to get thumbnails: ' + str(e))
+	except ValueError as e:
 		return jsonify({'result': 'error',
-						'message': 'Too many or malformed IDs'}), 400
+						'message': 'Failed to get thumbnails: ' +
+						str(e)}), 400 # Inherited from parent
+	except TypeError as e:
+		current_app.logger.error('Failed to get thumbnails: ' + str(e))
+		return jsonify({'result': 'error',
+						'message': 'Failed to get thumbnails: ' +
+						'Configuration error'}), 500
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to get thumbnails: ' + str(e))
 		return jsonify({'result': 'error',
-						'message': 'Failed to get thumbnails'}), 500
+						'message': 'Failed to get thumbnails: ' +
+						'Database error'}), 500
 	
 	# Dict of dicts indexed by video ID
-	thumb_data = {thumb['video_id']: {'f': thumb['thumb_format'], 'd': thumb['thumb_data']} for thumb in thumbnails}
+	thumbnails = {thumb['video_id']: {
+						'f': thumb['thumb_format'],
+						'd': thumb['thumb_data']
+					} for thumb in thumbnails}
 	
 	return jsonify({'result': 'ok',
-					'data': thumb_data})
+					'data': thumbnails})
+
+@blueprint.route('/search', methods = ['POST'], defaults = {
+				 'field': 'title'})
+@blueprint.route('/search/<string:field>', methods = ['POST'])
+@login_required('guest', api = True)
+def search(field):
+	"""
+	Fulltext search for videos by the specified metadata field (or 'all')
+	Returns a ranked list of matches with video ID, title and matching snippet
+	"""
+	search_query = request.get_json(silent = True)
+	if (not isinstance(search_query, str)):
+		return jsonify({'result': 'error',
+						'message': 'Invalid JSON request'}), 400
+	if len(search_query) < 3:
+		return jsonify({'result': 'error',
+						'message': 'Search query must be 3+ characters'}), 400
+	# todo: remove
+	current_app.logger.debug('Search query: ' + search_query)
+	
+	try:
+		results = search_videos(field, search_query)
+	except TypeError as e:
+		current_app.logger.error('Failed to get search results: ' + str(e))
+		return jsonify({'result': 'error',
+						'message': 'Search failed: Configuration error'}), 500
+	except ValueError as e:
+		return jsonify({'result': 'error',
+						'message': 'Search failed: ' +
+						str(e)}), 400 # Inherited from parent
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to get search results: ' + str(e))
+		return jsonify({'result': 'error',
+						'message': 'Search failed: Database error'}), 500
+	
+	# List of sqlite3.Rows to list of dict matches in rank order
+	results = [{'id': result['rowid'],
+				't': result['title'],
+				's': result['snippet']
+			   } for result in results]
+	
+	# Format snippets where necessary
+	for result in results:
+		# Remove newlines if searching description or all
+		if field in ['description', 'all']:
+			result.update({'s': result['s'].replace('\n', ' ')})
+		# Remove quotes and brackets if searching tags, categories or all
+		if field in ['tags', 'categories', 'all']:
+			result.update({'s': result['s'].replace('"', '')
+										   .replace('[', '').replace(']', '')})
+	
+	return jsonify({'result': 'ok',
+					'data': results})
+	
+	# todo:
+	# js:	on field change: trigger search if now >3 chars (for trigrams)
+	#		on change search type: trigger search if field >3 chars
+	#		load thumbs after typing stopped for x secs, same func just feed diff elements and don't mind the lack of observer

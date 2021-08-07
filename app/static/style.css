@@ -26,7 +26,7 @@ html {
 }
 
 html, body, p, ul, ol, li, h1, h3, h4, h5, h6, button, input[type="submit"] {
-	/* reset browser defaults */
+	/* Reset browser defaults */
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -62,13 +62,14 @@ body {
 		--loading: #6f6f6f;
 		--selected: #484848;
 		--hover: #5d5c5c;
-		--info: #3e6ab5; /* todo: nicer */
+		--info: #3e6ab5;
 		--warn: #b96713;
 		--error: #932419;
 	}
 	
 	.has-bg::before, .has-bg::after {
-		filter: invert(1); /* Invert background-image colours */
+		/* Invert colours in SVG backgrounds */
+		filter: invert(1);
 	}
 }
 
@@ -191,7 +192,8 @@ table {
 	   Sidebar fixed based on font size (slightly responsive to viewport width)
 	   Outer padding only when excess width */
 	grid-template-columns: [page-left] 1fr [main-left] minmax(0, 60vw) [main-right sidebar-left] minmax(0, 25rem) [sidebar-right] 1fr [page-right];
-	grid-template-rows: [header-top] auto [header-bottom messages-top] min-content [messages-bottom];
+	/* todo: not convinced this is even needed */
+	/* grid-template-rows: [header-top] auto [header-bottom messages-top] min-content [messages-bottom]; */
 	column-gap: 1rem;
 }
 
@@ -199,116 +201,267 @@ table {
 		display: none;
 	}
 	
-	.header-container {
-		grid-column: page-left / span page-right;
+	.header-background {
+		grid-column: page-left / span page-right; /* Page width */
+		grid-row: 1;
 		
-		display: grid;
-		grid-template-columns: inherit;
-		grid-template-rows: inherit;
-		column-gap: inherit;
-		
-		margin-bottom: 0.5rem;
 		background-color: var(--header);
 	}
 	
-		header {
-			grid-column: main-left / span sidebar-right;
-			grid-row: header-top / header-bottom;
-			
-			display: grid;
-			grid-template-columns: 0 [title-left] max-content [title-right nav-left] 1fr [nav-right] 0;
-			/* grid-template-rows: 100%; /* Set height for flex elements to fill when not wrapped */
-			align-items: center; /* Vertically align header items */
-			column-gap: 0.5rem;
+	header {
+		grid-column: main-left / span sidebar-right;
+		/* todo: probably remove see container */
+		/* grid-row: header-top / header-bottom; */
+		grid-row: 1; /* Overlay background */
+		
+		display: grid;
+		grid-template-columns: 0 [title-left] max-content [title-right nav-left] 1fr [nav-right] 0;
+		align-items: center; /* Vertically align items */
+		column-gap: 0.5rem;
+	}
+	
+		header li {
+			display: inline-flex;
 		}
 		
-			header li {
-				display: inline-flex;
-			}
+		header .sprite {
+			height: 100%;
+		}
+		
+		header button {
+			background: none;
+		}
+		
+		.site-logo {
+			grid-column: title-left / title-right; /* Gap either side */
 			
-			header .sprite {
-				height: 100%;
-			}
-			
-			.site-logo, header .navigation a {
-				height: 2.75rem; /* Logo & menu item height */
-				padding: 0.5rem 0;
-			}
+			margin-right: 0.5rem;
+		}
 
-			.site-logo {
-				grid-column: title-left / title-right; /* Gap on either side */
-				
-				margin-right: 0.5rem;
+		.site-logo,
+		header .navigation a,
+		header .navigation button {
+			height: 2.75rem; /* Logo & menu item height */
+			padding: 0.5rem 0;
+		}
+		
+		header .toggle-menu {
+			grid-column: nav-left / nav-right;
+			
+			display: none; /* Only shown on small screens */
+		}
+		
+			.toggle-menu .menu, .loading {
+				width: 2.5rem;
+				height: 2.5rem;
 			}
+			
+			.toggle-menu .toggle-search {
+				width: 2.25rem;
+				height: 2.5rem;
+			}
+			
+				.toggle-menu .sprite {
+					width: 100%;
+				}
+			
+			@keyframes rotate {
+				from {
+					transform: rotate(0deg);
+				}
+				to {
+					transform: rotate(360deg);
+				}
+			}
+			
+			.loading .sprite {
+				display: none; /* Default hide spinner */
+				animation: rotate 1s infinite linear;
+			}
+		
+		header .navigation {
+			grid-column: nav-left / nav-right;
+			
+			display: flex;
+			flex-flow: row-reverse wrap;
+			align-content: center; /* Centre uls vertically */
+		}
 
-			header .toggle-menu {
-				grid-column: nav-left / nav-right;
-				
-				display: none; /* Only shown on small screens */
-			}
-			
-				.toggle-menu button, .loading {
-					width: 2.5rem;
-					height: 2.5rem;
-					background: none;
-				}
-			
-					.toggle-menu .sprite {
-						width: 100%;
-					}
-				
-				@keyframes rotate {
-					from {
-						transform: rotate(0deg);
-					}
-					to {
-						transform: rotate(360deg);
-					}
-				}
-				
-				.loading .sprite {
-					display: none; /* Default hide spinner */
-					animation: rotate 1s infinite linear;
-				}
-			
-			header .navigation {
-				grid-column: nav-left / nav-right;
-				
+			.navigation .user, .navigation .pages {
+				flex: 1 auto; /* Fill & only wrap if needed */
+				/* Vertically align nav items */
 				display: flex;
-				flex-flow: row-reverse wrap;
-				align-content: center; /* Centre uls vertically */
+				align-items: center;
+				
+				column-gap: 0.5rem; /* Menu item spacing */
 			}
 
-				.navigation .user, .navigation .pages {
-					flex: 1 auto; /* Fill space, only wrap if needed */
+			.navigation .user, header .toggle-menu {
+				justify-content: flex-end; /* Align right edge */
+			}
+			
+				.navigation a {
 					/* Vertically align nav items */
 					display: flex;
 					align-items: center;
-					
-					column-gap: 0.5rem; /* Menu item spacing */
 				}
-
-				.navigation .user, header .toggle-menu {
-					justify-content: flex-end; /* Align to right edge of header */
+		
+					header a:hover, header button:hover {
+						filter: drop-shadow(0 0 0.2rem yellow);
+					}
+				
+				.toggle-search .close,
+				.toggle-search.toggled .search-button {
+					display: none;
 				}
 				
-					.navigation a {
-						/* Vertically align nav items */
-						display: flex;
-						align-items: center;
-					}
+				.toggle-search .search-button,
+				.toggle-search.toggled .close {
+					display: inline-block;
+				}
+		
+		.search {
+			grid-column: main-left / span sidebar-right;
 			
-						header a:hover, header button:hover {
-							filter: drop-shadow(0 0 0.2rem yellow);
+			display: grid; /* Default hidden */
+			grid-template-columns: minmax(0, 1fr) [search] min(30rem, 100%);
+		}
+		
+			.search .background-container {
+				grid-column: search;
+				
+				position: relative;
+				background: var(--header);
+				padding: 0 0.5rem 0.5rem;
+			}
+			
+				.search .input-container {
+					display: grid;
+					grid-template-columns: [query] 1fr [label] auto [field] auto;
+					align-items: center; /* Vertical align centre */
+					
+					position: relative;
+					height: 2.75rem;
+					/* margin: 0 0.5rem 0.5rem; */
+					background: var(--background);
+					z-index: 1;
+				}
+				
+					.search .input-container:focus-within {
+						/* Outline entire container, not just input */
+						outline: var(--foreground) auto 1px;
+					}
+					
+						.search .search-query:focus-within,
+						.search .search-field:focus-within {
+							outline: none; /* Override browser default */
 						}
 				
-		@media screen and (max-width: 440px) {
+					.search .search-query {
+						grid-column: query;
+						
+						height: 100%;
+						padding: 0 1rem;
+						border: 0;
+						font-family: var(--sans);
+						font-size: 1.1rem;
+						background: none;
+						color: var(--foreground);
+					}
+					
+					.search label {
+						grid-column: label;
+						
+						margin-right: 0.25rem;
+						font-size: 0.9rem;
+						font-style: italic;
+						color: var(--aside);
+					}
+					
+					.search .field-container {
+						grid-column: field;
+						
+						/* display: inline-block; */
+						position: relative;
+						height: 100%;
+						z-index: -1;
+					}
+					
+						.field-container::before {
+							/* Placeholder for background */
+							content: "";
+							position: absolute;
+							width: 100%;
+							height: 100%;
+							z-index: -2;
+						}
+						
+							.field-container:hover::before {
+								background-color: var(--hover);
+							}
+						
+						.search-field {
+							height: 100%;
+							/* Leave space for custom arrow */
+							padding: 0 2rem 0 0.5rem;
+							appearance: none; /* Hide default arrow */
+							/* Override browser defaults */
+							font-size: 0.9rem;
+							border: 0;
+							font-family: inherit;
+							background: none;
+							color: inherit;
+						}
+						
+							.search-field option {
+								/* Dropdown items */
+								font-family: inherit;
+								/* inherit doesn't work on colours 
+											¯\_(ツ)_/¯			   */
+								background: var(--background);
+								color: var(--foreground);
+							}
+						
+						.field-container .select-arrow {
+							/* Custom dropdown arrow */
+							position: absolute;
+							width: 1rem;
+							/* height: 100%; */
+							top: 0.9rem;
+							right: 0.75rem;
+							/* Under select so doesn't block click, above bg */
+							z-index: -2; /* Prevent arrow blocking click */
+						}
+						
+							.field-container .select-arrow .sprite {
+								/* width: 100%; Override header sprites */
+								/* todo: might not need any more now out of header */
+							}
+			
+				.search .search-results {
+					margin-top: 3.25rem; /* account for search bar */
+					
+					position: absolute;
+					top: 0;
+					left: 0;
+					width: 100%;
+					max-height: min(40rem, 100%);
+					z-index: 4; /* Above all but notifications */
+					overflow-y: auto; /* Scroll vertically */
+					background: lightgrey;
+				}
+				
+					.search-results .result {
+						height: 4rem;
+					}
+		
+		@media screen and (max-width: 460px) {
 			header .toggle-menu {
 				display: flex; /* Show menu button */
 			}
 			
 			header .navigation {
-				grid-column: title-left / span nav-right; /* Push onto second row */
+				grid-column: title-left / span nav-right; /* Push to new row */
 				display: none; /* Default hide menu */
 			}
 			
@@ -316,19 +469,28 @@ table {
 				display: flex;
 			}
 			
-			.loading-large {
-				display: none; /* Hide loading spinner on user row */
+			.user .loading, .user .toggle-search {
+				display: none; /* Hide spinner & search button on user row */
 			}
+			
+			.search {
+				grid-column: page-left / span page-right;
+			}
+			
+				.search label {
+					display: none;
+				}
 		}
 
 	.messages {
 		grid-column: main-left / span sidebar-right;
-		grid-row: messages-top / messages-bottom;
+		/* todo: probably remove see container */
+		/* grid-row: messages-top / messages-bottom; */
 		
 		margin-bottom: 0.5rem;
 	}
 		
-		/* See .notifications for colours */
+		/* Colours from .notifications */
 		.flash {
 			display: grid;
 			grid-template-columns: [level] minmax(0, 2rem) [content] 1fr [close] auto;
@@ -368,12 +530,11 @@ table {
 	.main {
 		grid-column: main-left / main-right;
 		
-		margin-top: 0.25rem;
+		margin-top: 1rem;
 	}
 		
 		.player {
-			/* Fixed aspect ratio */
-			/* todo: css aspect-ratio */
+			/* Fixed aspect */
 			height: 0;
 			overflow: hidden;
 			padding-bottom: calc(100% / (16/9));
@@ -382,7 +543,7 @@ table {
 		}
 			
 			.player video, .overlay {
-				/* Video and overlays inherit fixed aspect ratio */
+				/* Inherit aspect */
 				position: absolute;
 				top: 0;
 				left: 0;
@@ -393,10 +554,11 @@ table {
 			.overlay {
 				display: grid;
 				justify-items: center; /* Horiztontal centre */
-				align-content: center; /* Vertical centre (multiple rows are aligned together) */
+				/* Vertical centre, multiple rows aligned together */
+				align-content: center;
 				row-gap: 5%;
 
-				z-index: 1; /* Cover video */
+				z-index: 1;
 			}
 			
 			.play-manual {
@@ -421,7 +583,7 @@ table {
 				}
 				
 				.play-manual .play-fg {
-					z-index: 3; /* Stacks fg, hover, bg */
+					z-index: 3; /* Stack as fg, hover, bg */
 				}
 				
 				.play-manual .play-hover {
@@ -466,7 +628,9 @@ table {
 				}
 				
 					.player .placeholder .sprite {
-						width: 30%; /* proportional to player (can't use height as grid row height expands) */
+						/* Proportional to player
+						   (can't use height as row expands) */
+						width: 30%;
 						opacity: 65%;
 					}
 		
@@ -541,7 +705,7 @@ table {
 				}
 				
 					.rating .sprite {
-						/* Images overlay each other */
+						/* Images overlay */
 						grid-column: 1;
 						grid-row: 1;
 					}
@@ -594,7 +758,7 @@ table {
 					grid-area: desc;
 					
 					display: grid;
-					/* minmax(0, 1fr) prevents blowout from long description lines */
+					/* minmax prevents blowout from long description lines */
 					grid-template-columns: repeat(2, auto minmax(0, 1fr));
 					grid-template-rows: min-content;
 					grid-template-areas:
@@ -616,16 +780,12 @@ table {
 					.description {
 						grid-area: desc-text;
 						
-						word-break: break-word; /* Long lines can break */
+						word-break: break-word; /* Long lines break */
 					}
 					
 						.description p {
 							margin-bottom: 0.75rem;
 						}
-					
-					.tags-label, .tags, .categories-label, .categories {
-						/* grid-row: 2; */
-					}
 					
 					.tags-label {
 						grid-area: tags-label;
@@ -649,7 +809,8 @@ table {
 				justify-content: center;
 				width: 100%;
 				bottom: -0.5rem;
-				margin-left: -2rem; /* Offset left/right padding difference on container */
+				/* Offset left/right padding difference on container */
+				margin-left: -2rem;
 			}
 			
 				.show-more a {
@@ -669,7 +830,7 @@ table {
 				}
 				
 			@media screen and (max-width: 660px) {
-				.info {
+				.info-container .info {
 					grid-template-columns: repeat(4, 1fr);
 					grid-template-areas:
 						" title  title  title  title  "
@@ -680,7 +841,7 @@ table {
 			}
 			
 			@media screen and (max-width: 440px) {
-				.info {
+				.info-container .info {
 					grid-template-columns: repeat(2, 1fr);
 					grid-template-areas:
 						" title  title  "
@@ -712,13 +873,12 @@ table {
 		
 		display: grid;
 		grid-template-rows: repeat(3, min-content);
-		margin: 0.5rem;
-		/* row-gap: 1rem; */
+		margin: 1rem 0.5rem 0.5rem;
 	}
 		
 		.controls {
 			display: grid;
-			/* Empty space between so controls aligned to left & right */
+			/* Empty space between align controls left & right */
 			grid-template-columns: [playback] auto 1fr [playlist] auto;
 			row-gap: 0.5rem; /* When wrapped on small screens */
 			margin: 0.25rem;
@@ -760,7 +920,7 @@ table {
 						right: 0.2rem;
 						bottom: 0.2rem;
 						border-radius: 50%;
-						background: crimson; /* todo */
+						background: crimson;
 					}
 					
 					.controls .toggle.enabled::before {
@@ -768,12 +928,13 @@ table {
 					}
 				
 					.controls .sprite {
-						width: 100%; /* Contain dropdown arrow */
+						/* Contain dropdown arrow */
+						width: 100%;
 						height: 100%;
 					}
 					
 				.controls .select-container {
-					/* Contains select & arrow for hover background */
+					/* Contain select & arrow for hover background */
 					display: inline-block;
 					position: relative;
 					/* Vertical align with buttons */
@@ -793,7 +954,8 @@ table {
 					
 					.controls select {
 						height: 2.5rem;
-						padding: 0 1.75rem 0 0.5rem; /* Leave space for custom arrow */
+						/* Leave space for custom arrow */
+						padding: 0 1.75rem 0 0.5rem;
 						appearance: none; /* Hide default arrow */
 						/* Override browser defaults */
 						font-size: 1rem;
@@ -806,12 +968,10 @@ table {
 						.controls option {
 							/* Dropdown items */
 							font-family: inherit;
-							background: var(--background); /* inherit doesn't work here */
-							color: var(--foreground);	   /*        ¯\_(ツ)_/¯ 			*/
-						}
-						
-						.controls option[disabled] {
-							display: none; /* Hide placeholder from list */
+							/* inherit doesn't work on colours 
+										¯\_(ツ)_/¯			   */
+							background: var(--background);
+							color: var(--foreground);
 						}
 					
 					.controls .select-arrow {
@@ -821,17 +981,16 @@ table {
 						height: 100%;
 						top: 0.1rem;
 						right: 0.4rem;
-						/* Under select so doesn't block click, above background */
+						/* Under select so doesn't block click, above bg */
 						z-index: -1;
 					}
 		
 		.list-container {
 			--thumb-width: 5.1rem;
+			--thumb-height: calc((var(--thumb-width) / 16) * 9);
 			--item-gap: 0.25rem;
 			--border-offset: 0.25rem;
 			--border-width: 0.5rem;
-			
-			--thumb-height: calc((var(--thumb-width) / 16) * 9);
 			
 			position: relative;
 			 /* Space for border + a little breathing room */
@@ -1135,7 +1294,7 @@ table {
 
 .notifications {
 	position: fixed;
-	z-index: 3;
+	z-index: 5;
 	top: 0;
 	right: 1rem;
 	

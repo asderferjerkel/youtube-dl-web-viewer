@@ -44,7 +44,7 @@
 				});
 				
 				// Show/hide menu on small screens
-				document.querySelector(".toggle-menu button")
+				document.querySelector(".toggle-menu .menu button")
 						.addEventListener("click", () => {
 					document.querySelector("header .navigation")
 							.classList.toggle("toggled");
@@ -88,7 +88,6 @@
 			*/
 			function addMessage(message, id, disappear = false, level = "info",
 								progress, actionText, action, args = []) {
-				
 				const notifications = document.getElementById("notifications");
 				const template = {
 					levels: {
@@ -198,14 +197,15 @@
 			Load an API endpoint and return the json response
 			  GET:  loadJSON("playlist", 1) fetches <api_url>/playlist/1
 			  POST: loadJSON("POST", postData, "playlist", 1)
+			  Optionally pass an AbortSignal as the first argument to
+			  allow aborting the request before completion
 			*/
-			async function loadJSON(...params) {
+			async function loadJSON(...args) {
 				// Show loading spinner
 				loadingSpinners.forEach((spinner) => {
 					spinner.style.display = "inline-flex";
 				});
 				
-				let endpoint;
 				let fetchParams = {
 					method: "GET",
 					headers: {
@@ -213,6 +213,16 @@
 					},
 					body: null
 				};
+				
+				let params;
+				if (args[0] instanceof AbortSignal) {
+					fetchParams["signal"] = args[0];
+					params = args.slice(1);
+				} else {
+					params = args;
+				}
+				
+				let endpoint;
 				if (params.length > 2 && params[0] === "POST") {
 					// POST
 					endpoint = params.slice(2).join("/");
@@ -227,15 +237,18 @@
 				const response = await fetch(baseUrl + "api/" + endpoint,
 											 fetchParams);
 				const json = await response.json();
+				
 				// Hide loading spinner
 				loadingSpinners.forEach((spinner) => {
 					spinner.style.display = "none";
 				});
+				
 				if (!response.ok) {
 					if (json.message != null) {
 						addMessage(json.message, null, true, "warn");
 					} else {
-						addMessage("API error: see console for details", null, true, "error");
+						addMessage("API error: see console for details", null,
+								   true, "error");
 						console.error("API request failed:", response.statusText);
 					}
 				} else {
@@ -324,40 +337,39 @@
 	
 	<body>
 		<div id="container" class="container">
-			<div class="header-container">
-				<header>
-					<a class="site-logo" href="{{ url_for('index.index') }}" aria-label="Home">{{ render_sprite('site') }}</a>
-					<nav class="toggle-menu">
-						<ul>
-							<li class="loading loading-small">{{ render_sprite('loading') }}</li>
-							<li><button title="Menu">{{ render_sprite('menu') }}</button></li>
-						</ul>
-					</nav>
-					<nav class="navigation">
-					{% if g.user %}
-						<ul class="user">
-							<li class="loading loading-large">{{ render_sprite('loading') }}</li>
+			<div class="header-background"></div>
+			<header id="header">
+				<a class="site-logo" href="{{ url_for('index.index') }}" aria-label="Home">{{ render_sprite('site') }}</a>
+				<nav class="toggle-menu">
+					<ul>
+						<li class="loading">{{ render_sprite('loading') }}</li>
+						{% block search_button %}{% endblock %}
+						<li class="menu"><button title="Menu">{{ render_sprite('menu') }}</button></li>
+					</ul>
+				</nav>
+				<nav class="navigation">
+					<ul class="user">
+						<li class="loading">{{ render_sprite('loading') }}</li>
+						{{ self.search_button() }}
+						{% if g.user %}
 							<li><a href="{{ url_for('settings.user') }}" title="My account">{{ render_sprite('user') }} {{ g.user['username'] }}</a></li>
 							<li><a href="{{ url_for('auth.logout') }}" title="Log out">{{ render_sprite('logout') }}</a></li>
-						</ul>
-						{% if g.user['is_admin'] == 1 %}
-							<ul class="pages">
-							{% for item in nav.top %}
-								<li class="{{ 'active' if item.is_active }}">
-									<a href="{{ item.url }}" title="{{ item.label|capitalize }}">{{ render_sprite(item.label) }}</a>
-								</li>
-							{% endfor %}
-							</ul>
-						{% endif %}
-					{% else %}
-						<ul class="user">
-							<li class="loading loading-large">{{ render_sprite('loading') }}</li>
+						{% else %}
 							<li><a href="{{ url_for('auth.login') }}" title="Log in">{{ render_sprite('login') }}</a></li>
-						</ul>
+						{% endif %}
+					</ul>
+					<ul class="pages">
+					{% if g.user and g.user['is_admin'] == 1 %}
+						{% for item in nav.top %}
+							<li class="{{ 'active' if item.is_active }}">
+								<a href="{{ item.url }}" title="{{ item.label|capitalize }}">{{ render_sprite(item.label) }}</a>
+							</li>
+						{% endfor %}
 					{% endif %}
-					</nav>
-				</header>
-			</div>
+					</ul>
+				</nav>
+			{% block search %}{% endblock %}
+			</header>
 			
 			<section class="messages">
 			{% with messages = get_flashed_messages(with_categories = true) %}
@@ -377,6 +389,7 @@
 			
 			{% block content %}{% endblock %}
 		</div>
+		
 		<ul id="notifications" class="notifications"></ul>
 		<section class="templates">
 			<template id="template-info">

@@ -1,10 +1,10 @@
+const header = document.getElementById("header");
 const playerContainer = document.getElementById("player");
 const player = playerContainer.querySelector("video");
-
 const infoContainer = document.getElementById("info");
 const info = infoContainer.querySelector(".info");
 const descriptionContainer = info.querySelector(".description-container");
-
+const searchContainer = document.getElementById("search");
 const controls = document.getElementById("controls");
 let playlistList = document.getElementById("playlists");
 let videoList = document.getElementById("videos");
@@ -101,6 +101,36 @@ document.addEventListener("DOMContentLoaded", (event) => {
 			unloadCurrent("playlist");
 		}
 	});
+	
+	// Search/close clicked
+	header.querySelectorAll(".toggle-search button").forEach((button) => {
+		button.addEventListener("click", () => {
+			// Toggle each search/close button
+			header.querySelectorAll(".toggle-search").forEach((element) => {
+				element.classList.toggle("toggled");
+			});
+			// Toggle search bar
+			searchContainer.classList.toggle("hidden");
+			
+			const searchInput = searchContainer.querySelector(".search-query");
+			if (!searchContainer.classList.contains("hidden")) {
+				// Search opened, focus on input if <3 characters entered
+				if (searchInput.value.length < 3) {
+					searchInput.focus();
+				}
+			} else {
+				// Search closed, deselect input to hide keyboard on mobile
+				searchInput.blur();
+			}
+		});
+	});
+	
+	// Search query entered
+	/*
+	listen for changes, if now >3 characters, search for results
+	in showResults, add listener for clicked outside results to hide them (but keep search bar)
+	clicking on search bar again (listen for focus not click, as opening search doesn't trigger click on it) should show results again
+	*/
 	
 	// Playlist clicked
 	playlistList.querySelectorAll(".playlist").forEach(function(playlist) {
@@ -220,37 +250,11 @@ function displayFolders(folders) {
 	// Add each folder to list
 	folders.forEach((folder) => {
 		let folderElement = template.content.firstElementChild.cloneNode(true);
-		// Add metadata to template
+		// Populate template
 		folderElement.setAttribute("data-playlist", folder.id);
 		folderElement.querySelector(".number")
 			.textContent = folder.video_count;
 		folderElement.querySelector(".name").textContent = folder.folder_name;
-		
-		/*
-		todo: delete tHIS
-		let folderElement = document.createElement("li");
-		folderElement.className = "playlist";
-		folderElement.setAttribute("data-playlist", folder.id);
-		
-		let countElement = document.createElement("div");
-		countElement.className = "count";
-		
-		let numberElement = document.createElement("div");
-		numberElement.className = "number";
-		numberElement.textContent = folder.video_count;
-		countElement.appendChild(numberElement);
-		
-		let captionElement = document.createElement("div");
-		captionElement.className = "caption";
-		captionElement.textContent = "videos";
-		countElement.appendChild(captionElement);
-		folderElement.appendChild(countElement);
-		
-		let nameElement = document.createElement("div");
-		nameElement.className = "name";
-		nameElement.textContent = folder.folder_name;
-		folderElement.appendChild(nameElement);
-		*/
 		
 		// Playlist clicked
 		folderElement.addEventListener("click", function() {
@@ -320,71 +324,12 @@ function displayPlaylist(playlist) {
 		current.index[video.id] = index;
 		
 		let videoElement = template.content.firstElementChild.cloneNode(true);
+		// Populate template
 		videoElement.setAttribute("data-video", video.id);
-		
 		videoElement.querySelector(".position").textContent = index + 1;
 		videoElement.querySelector(".duration").textContent = video.duration;
 		videoElement.querySelector(".number").textContent = index + 1;
 		videoElement.querySelector(".name").textContent = video.title;
-		
-		/*
-		todo: deLTE this
-		let videoElement = document.createElement("li");
-		videoElement.className = "video";
-		videoElement.setAttribute("data-video", video.id);
-		
-		// Playlist position
-		let positionElement = document.createElement("div");
-		positionElement.className = "position";
-		positionElement.textContent = index + 1;
-		videoElement.appendChild(positionElement);
-		
-		let thumbElement = document.createElement("div");
-		thumbElement.className = "thumbnail";
-		
-		// Duration
-		if (video.duration != null) {
-			let durationElement = document.createElement("div");
-			durationElement.className = "duration";
-			durationElement.textContent = video.duration;
-			thumbElement.appendChild(durationElement);
-		}
-		
-		
-		//todo: delete thumb
-		// Add thumbnail if present, else playlist index
-		//if (video.thumbnail != null) {
-		//	let thumbnail = document.createElement("img");
-		//	thumbnail.src = video.thumbnail;
-		//	// Only load thumbs near viewport
-		//	thumbnail.loading = "lazy";
-		//	thumbElement.appendChild(thumbnail);
-		//} else {
-		//	thumbElement.classList.add("count");
-		//	let thumbnail = document.createElement("div");
-		//	thumbnail.className = "number";
-		//	thumbnail.textContent = index;
-		//	thumbElement.appendChild(thumbnail);
-		//}
-		
-		// Empty placeholder for thumbnail
-		let thumbnail = document.createElement("img");
-		thumbnail.className = "thumb";
-		thumbElement.appendChild(thumbnail);
-		
-		// Playlist position (only visible if no thumbnail)
-		let position = document.createElement("div");
-		position.className = "number";
-		position.textContent = index + 1; // Start from 1
-		thumbElement.appendChild(position);
-		
-		videoElement.appendChild(thumbElement);
-		
-		let nameElement = document.createElement("div");
-		nameElement.className = "name";
-		nameElement.textContent = video.title;
-		videoElement.appendChild(nameElement);
-		*/
 		
 		videoElement.addEventListener("click", function() {
 			// Video clicked
@@ -431,7 +376,7 @@ function displayPlaylist(playlist) {
 
 
 // Load, display and play a video by its ID
-// If addHistory = false, replace current instead of adding an emtry
+// If addHistory = false, replaces current entry instead of adding
 async function loadVideo(videoID, addHistory = true) {
 	let video = await loadJSON("video", videoID);
 	current.video = video.data;
@@ -605,11 +550,10 @@ function displayVideo(video) {
 		info.querySelector(".format").classList.remove("hidden");
 	}
 	
-	// Description (replace line breaks with HTML)
+	// Description (replace newlines with <br>)
 	let description = descriptionContainer.querySelector(".description");
 	if (video.description !== null) {
-		// Safely insert description, replacing newlines with <br>)
-		description.innerText = video.description;
+		description.innerText = video.description; // Insert safely
 		description.classList.remove("hidden");
 	} else {
 		description.classList.add("hidden");
@@ -633,11 +577,7 @@ function displayVideo(video) {
 }
 
 
-/**
-Load and display thumbnails from a Map of videoID: element
-  Returns an array of successfully requested video IDs,
-  whether or not they had thumbs
-*/
+// Load and display thumbnails from a Map of videoID: element
 const thumbsPerRq = 10;
 async function loadThumbs(thumbQueue) {
 	let videoIDs = Array.from(thumbQueue.keys());
@@ -678,7 +618,7 @@ function createObserver(rootElement) {
 	return obs;
 };
 
-const numRecentThumbs = 20; // Load most recent x thumbs seen
+const numRecentThumbs = 25; // Load the newest x intersecting thumbs
 let pendingThumbs = [];
 let intersectionTimer;
 function intersectionChanged(entries, observer) {
@@ -707,6 +647,44 @@ function intersectionChanged(entries, observer) {
 		// (with queue at time of calling, in case more added)
 		intersectionTimer = setTimeout(thumbsFromPending, 200);
 	}
+};
+
+
+// Search metadata fields for videos
+let abortController = null;
+async function searchVideos(field, query) {
+	if (abortController) {
+		// Cancel the previous request if pending
+		abortController.abort();
+		abortController = null;
+	}
+	
+	abortController = new AbortController();
+	try {
+		const results = await loadJSON(abortController.signal,
+									   "POST", query, "search", field);
+		console.log(results); // todo: delete
+		return results.data; // also
+		//displaySearchResults(results.data);
+	} catch(err) {
+		// Request aborted
+	} finally {
+		abortSearchController = null;
+	}
+};
+
+function displaySearchResults(results) {
+	// clear existing results (same clonenode so clears listeners)
+	// display matches: template w/ thumb placeholder (push into queue w/ ID), title, snippet, click listener to loadVideo
+	// load thumbs
+	
+	// then the search button listener opens the field and focuses (with existing search if not changed)
+	// unfocusing on the field hides the list (ie once clicked? or just hide in the click listener)
+	// or tapping anywhere but it
+	// or search icon turns into an X
+	// have fixed max height but can scroll
+	
+	// if that works in the right order then sack off this indexed dict bs
 };
 
 
@@ -983,7 +961,7 @@ Toggle displaying full or clipped description
   show = true: full-height description & "show less"
   show = false: description overflows & "show more"
 */
-let fullHeight = true; // Page load default
+let fullHeight = true; // Page load default (todo: fix all this, mayb only show on mob)
 function fullDescription(show = true) {
 	fullHeight = (show ? true : false);
 	infoContainer.classList[show ? "add" : "remove"]("full-height");

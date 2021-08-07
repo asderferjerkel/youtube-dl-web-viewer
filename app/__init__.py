@@ -43,6 +43,15 @@ def create_app():
 			'average_rating': 'Rating',
 			'duration': 'Duration'
 			},
+		SEARCH_COLUMNS = {
+			'title': 'Title',
+			'description': 'Description',
+			'uploader': 'Uploader',
+			'categories': 'Categories',
+			'tags': 'Tags'
+			},
+		SEARCH_COLUMN_WEIGHTING = (5.0, 3.0, 10.0, 1.0, 3.0),
+		MAX_SEARCH_RESULTS = 25,
 		DISPLAY_PREFS = {
 			'autoplay': True,
 			'shuffle': False,
@@ -57,7 +66,7 @@ def create_app():
 			},
 		THUMBNAIL_SIZE = (128, 72),
 		THUMBNAIL_QUALITY = 70,
-		DATABASE_LOG_LEVEL = logging.DEBUG
+		DATABASE_LOG_LEVEL = logging.WARNING
 	)
 	
 	# Get user config if it exists

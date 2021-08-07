@@ -1,5 +1,48 @@
 {% extends 'base.html' %}
 
+{% block search_button %}
+	<li class="toggle-search">
+		<button class="search-button" title="Search">{{ render_sprite('search') }}</button>
+		<button class="close" title="Close search">{{ render_sprite('close') }}</button>
+	</li>
+{% endblock %}
+
+{% block search %}
+	<section id="search" class="search hidden">
+		<div class="background-container">
+			<div class="input-container">
+				<input class="search-query" type="text" placeholder="Search">
+				<label for="field-container">in:</label>
+				<div id="field-container" class="field-container">
+					<select class="search-field" title="Field to search">
+						<option value="all" selected>Any field</option>
+						{% for column, friendly_name in config.SEARCH_COLUMNS.items() %}
+							<option value="{{ column }}">{{ friendly_name }}</option>
+						{% endfor %}
+					</select>
+					<div class="select-arrow">
+						{{ render_sprite('show-more') }}
+					</div>
+				</div>
+			</div>
+			<div class="search-results">
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+				<div class="result">test aaaaa</div>
+			</div>
+		</div>
+	</section>
+{% endblock %}
+
 {% block content %}
 	<section class="main">
 		<div id="player" class="player">

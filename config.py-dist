@@ -58,6 +58,26 @@ SORT_COLUMNS = {
 	'duration': 'Duration'
 	}
 
+# Search columns: web interface offers these columns to search by
+# (see videos_fts table in app/create_db.sql to add more)
+SEARCH_COLUMNS = {
+	'title': 'Title',
+	'description': 'Description',
+	'uploader': 'Uploader',
+	'categories': 'Categories',
+	'tags': 'Tags'
+	}
+
+# Search column weighting: when searching all fields, each columb can be given
+# a multiplier to make a match in that column more relevant to the results
+# Note that weightings must be given in the same order that the columns appear
+# in the database (which can differ from SEARCH_COLUMNS above) - see the
+# videos_fts table in app/create_db.sql
+SEARCH_COLUMN_WEIGHTING = (5.0, 3.0, 10.0, 1.0, 3.0)
+
+# Search results: maximum number returned per query
+MAX_SEARCH_RESULTS = 25
+
 # Display settings: defaults for logged-out users and new user sessions
 #	'autoplay':			True or Falsae
 #	'shuffle':			True or False

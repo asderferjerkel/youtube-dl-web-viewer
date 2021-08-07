@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS folders;
 DROP TABLE IF EXISTS videos;
+DROP TABLE IF EXISTS videos_fts;
 DROP TABLE IF EXISTS thumbs;
 DROP TABLE IF EXISTS params;
 DROP TABLE IF EXISTS users;
@@ -43,6 +44,57 @@ CREATE TABLE videos (
 	fps NUMERIC,
 	FOREIGN KEY (folder_id) REFERENCES folders (id)
 );
+
+CREATE VIRTUAL TABLE videos_fts USING fts5 (
+	title,
+	description,
+	uploader,
+	categories,
+	tags,
+	content = 'videos',
+	content_rowid = 'id',
+	tokenize = 'trigram'
+);
+
+CREATE TRIGGER videos_ai AFTER INSERT ON videos
+	BEGIN
+		INSERT INTO videos_fts (
+			rowid,
+			title,
+			description,
+			uploader,
+			categories,
+			tags
+		) VALUES (
+			new.id,
+			new.title,
+			new.description,
+			new.uploader,
+			new.categories,
+			new.tags
+		);
+	END;
+
+CREATE TRIGGER videos_ad AFTER DELETE ON videos
+	BEGIN
+		INSERT INTO videos_fts (
+			videos_fts,
+			rowid,
+			title,
+			description,
+			uploader,
+			categories,
+			tags
+		) VALUES (
+			'delete',
+			old.id,
+			old.title,
+			old.description,
+			old.uploader,
+			old.categories,
+			old.tags
+		);
+	END;
 
 CREATE TABLE thumbs (
 	id INTEGER PRIMARY KEY,

@@ -25,14 +25,14 @@
 {% macro render_sprite(sprite_id, extra_class) %}
 	{% if sprite_id in ['site'] %}
 		{% set view_box = '0 0 100 25' %}
-	{% elif sprite_id in ['settings', 'users', 'log', 'user', 'logout', 'next', 'previous', 'autoplay', 'shuffle', 'asc', 'desc', 'show-more', 'info', 'warn', 'error', 'close', 'original', 'login', 'menu', 'loading'] %}
-		{% set view_box = '0 0 32 32' %}
 	{% elif sprite_id in ['play-fg', 'play-bg', 'play-hover'] %}
 		{% set view_box = '0 0 119 75' %}
 	{% elif sprite_id in ['stars-filled', 'stars-empty'] %}
 		{% set view_box = '0 0 100 16' %}
 	{% elif sprite_id in ['bongo'] %}
 		{% set view_box = '0 0 64 27' %}
+	{% else %}
+		{% set view_box = '0 0 32 32' %}
 	{% endif %}
 
 	<svg class="sprite{{ ' ' ~ extra_class if extra_class }}" viewBox="{{ view_box if view_box }}">
