@@ -1,11 +1,14 @@
 import functools
 import json
 
-from flask import Blueprint, flash, g, current_app, redirect, render_template, request, session, url_for, jsonify
+from flask import (Blueprint, flash, g, current_app, redirect, render_template,
+				   request, session, url_for, jsonify)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from flask_wtf import FlaskForm
-from wtforms import Form, StringField, PasswordField, BooleanField, IntegerField, HiddenField, FieldList, FormField, SubmitField, validators
+from wtforms import (Form, StringField, PasswordField, BooleanField,
+					 IntegerField, HiddenField, FieldList, FormField,
+					 SubmitField, validators)
 from wtforms.validators import ValidationError
 from wtforms.widgets import HiddenInput
 
@@ -19,9 +22,9 @@ def username_available(form, field):
 	"""Forbids existing usernames"""
 	try:
 		if get_db().execute('SELECT id FROM users WHERE username = ?', (field.data, )).fetchone() is not None:
-			raise ValidationError('Username already in use')
+			raise ValidationError('Username already in use.')
 	except sqlite3.OperationalError:
-		raise ValidationError('Could not check username availability')
+		raise ValidationError('Could not check username availability: Database error.')
 
 def username_available_current(form, field):
 	"""Forbids existing usernames, ignoring current if unchanged"""
@@ -29,9 +32,9 @@ def username_available_current(form, field):
 		if get_db().execute('SELECT id FROM users WHERE username = ? AND id != ?',
 			(field.data, form.user_id.data)
 			).fetchone() is not None:
-			raise ValidationError('Username already in use')
+			raise ValidationError('Username already in use.')
 	except sqlite3.OperationalError:
-		raise ValidationError('Could not check username availability')
+		raise ValidationError('Could not check username availability: Database error.')
 
 def protect_self(form, field):
 	"""
@@ -42,7 +45,7 @@ def protect_self(form, field):
 	if field.data:
 		# Boolean is checked
 		if g.user['id'] == int(form.user_id.data):
-			raise ValidationError('You cannot demote or delete yourself')
+			raise ValidationError('You cannot demote or delete yourself.')
 
 # User auth & update forms
 class LoginUser(FlaskForm):
@@ -52,7 +55,7 @@ class LoginUser(FlaskForm):
 class AddUser(FlaskForm):
 	username = StringField('Username', [validators.InputRequired(), validators.Length(min = 1, max = 255), username_available])
 	password = PasswordField('Password', [validators.Length(min = 6, max = 255)])
-	repeat = PasswordField('Repeat password', [validators.EqualTo('password', message = 'Passwords do not match')])
+	repeat = PasswordField('Repeat password', [validators.EqualTo('password', message = 'Passwords do not match.')])
 	# Different submit button names so can use multiple forms on one page
 	add = SubmitField('Add user')
 
@@ -88,6 +91,7 @@ class BooleanSubField(BooleanField):
 			self.data = value.data
 		else:
 			self.data = bool(value)
+
 
 def add_user(username, password, is_admin = 0):
 	"""Add a new user. Expects a valid username and password, and the username to already be checked for collisions. Optionally set is_admin = 1 to make an admin. Returns unique user ID."""
@@ -132,68 +136,12 @@ def login_user(id):
 	# Sessions last app.config['PERMANENT_SESSION_LIFETIME']
 	session.permanent = True
 
-@blueprint.before_app_request
-def load_user():
-	"""Make user info available to views if logged in"""
-	user_id = session.get('user_id')
-	g.user = None
-	
-	if user_id is not None:
-		try:
-			g.user = get_db().execute('SELECT id, username, is_admin FROM users WHERE id = ?', (user_id, )).fetchone()
-		except sqlite3.OperationalError:
-			# Don't store in case of DB failure
-			pass
-
-@blueprint.route('/login', methods = ('GET', 'POST'))
-def login():
-	form = LoginUser()
-	
-	if g.user is not None:
-		flash('Already logged in', 'info')
-		return redirect(url_for('index.index'))
-	
-	# If POST request and form is valid
-	if form.validate_on_submit():
-		username = form.username.data
-		password = form.password.data
-		
-		try:
-			user = get_db().execute('SELECT id, password FROM users WHERE username = ?', (username, )).fetchone()
-		except sqlite3.OperationalError:
-			flash('Database not initialised', 'error')
-			return redirect(url_for('db.init'))
-		else:
-			if (user is None or not check_password_hash(user['password'], password)):
-				flash('Incorrect username/password', 'warn')
-				return redirect(url_for('auth.login'))
-
-		# Successful login
-		# Get original URL from session before it's cleared
-		next_url = None
-		if session.get('next_url'):
-			next_url = session.get('next_url')
-		# Clear session, log in and redirect to original URL or index
-		login_user(user['id'])
-		if next_url is not None:
-			return redirect(next_url)
-		return redirect(url_for('index.index'))
-	
-	return render_template('login.html', title = 'Login', form = form)
-
-@blueprint.route('/logout')
-def logout():
-	if g.user is not None:
-		session.clear()
-		flash('Logged out', 'info')
-	else:
-		flash('Not logged in', 'warn')
-	return redirect(url_for('auth.login'))
-
 def login_required(user_class = 'user', api = False):
 	"""
-	Restricts a view to logged in (default) or admin users, or allows guests if specified in settings.
-	Specify api = True to restrict an API endpoint (returns 403 Forbidden instead of a redirect)
+	Restricts a view to logged in (default) or admin users,
+	or allows guests if specified in settings.
+	api = True restricts an API endpoint (returns 403 Forbidden
+										  instead of a redirect)
 	user_class = user, admin or guest
 	"""
 	def decorator(view):
@@ -245,3 +193,65 @@ def login_required(user_class = 'user', api = False):
 			return redirect(url_for('auth.login'))
 		return wrapped_view
 	return decorator
+
+
+@blueprint.before_app_request
+def load_user():
+	"""Make user info available to views if logged in"""
+	user_id = session.get('user_id')
+	g.user = None
+	
+	if user_id is not None:
+		try:
+			g.user = get_db().execute('SELECT id, username, is_admin FROM users WHERE id = ?', (user_id, )).fetchone()
+		except sqlite3.OperationalError:
+			# Don't store in case of DB failure
+			pass
+
+@blueprint.route('/login', methods = ('GET', 'POST'))
+def login():
+	form = LoginUser()
+	
+	if g.user is not None:
+		flash('Already logged in', 'info')
+		return redirect(url_for('index.index'))
+	
+	# If POST request and form is valid
+	if form.validate_on_submit():
+		username = form.username.data
+		password = form.password.data
+		
+		query = 'SELECT id, password FROM users WHERE username = ?'
+		try:
+			user = get_db().execute(query, (username, )).fetchone()
+		except sqlite3.OperationalError:
+			flash('Database not initialised', 'error')
+			return redirect(url_for('db.init'))
+		else:
+			if (user is None or
+				not check_password_hash(user['password'], password)
+			):
+				flash('Incorrect username/password', 'warn')
+				return redirect(url_for('auth.login'))
+
+		# Successful login
+		# Get original URL from session before it's cleared
+		next_url = None
+		if session.get('next_url'):
+			next_url = session.get('next_url')
+		# Clear session, log in and redirect to original URL or index
+		login_user(user['id'])
+		if next_url is not None:
+			return redirect(next_url)
+		return redirect(url_for('index.index'))
+	
+	return render_template('login.html', title = 'Login', form = form)
+
+@blueprint.route('/logout')
+def logout():
+	if g.user is not None:
+		session.clear()
+		flash('Logged out', 'info')
+	else:
+		flash('Not logged in', 'warn')
+	return redirect(url_for('auth.login'))

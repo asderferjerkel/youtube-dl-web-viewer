@@ -4,14 +4,18 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 
-from flask import Blueprint, flash, g, current_app, redirect, render_template, request, session, url_for
+from flask import (Blueprint, flash, g, current_app, redirect, render_template,
+				   request, session, url_for)
 from werkzeug.security import check_password_hash	
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, BooleanField, HiddenField, validators
+from wtforms import (StringField, PasswordField, SelectField, BooleanField,
+					 HiddenField, validators)
 from wtforms.validators import ValidationError
 
-from app.auth import login_required, add_user, update_user, login_user, LoginUser, AddUser, UpdateUser, AdminUpdateUser, AdminUpdateUsers
+from app.auth import (login_required, add_user, update_user, login_user,
+					  LoginUser, AddUser, UpdateUser, AdminUpdateUser,
+					  AdminUpdateUsers)
 from app.db import get_db, get_params
 from app.helpers import check_conf
 
@@ -22,18 +26,12 @@ except ImportError:
 
 blueprint = Blueprint('settings', __name__, url_prefix='/settings')
 
-def init_app(app):
-	"""Warn if image generation support is missing"""
-	with app.app_context():
-		if features is None:
-			current_app.logger.warning('Thumbnail generation unavailable: Pillow is not installed')
-
 # Validate settings
 def is_folder(form, field):
 	"""Check if the provided folder path exists"""
 	if not Path(field.data).is_dir():
 		# Could also be a broken symlink
-		raise ValidationError('Path is not a directory or does not exist')
+		raise ValidationError('Path is not a directory or does not exist.')
 
 # Settings form
 class GeneralSettings(FlaskForm):
@@ -47,6 +45,14 @@ class GeneralSettings(FlaskForm):
 	filename_delimiter = StringField('Video filename delimiter', [validators.Optional()])
 	replace_underscores = BooleanField('Replace underscores in titles')
 	guests_can_view = BooleanField('Enable guest access')
+
+
+def init_app(app):
+	"""Warn if image generation support is missing"""
+	with app.app_context():
+		if features is None:
+			current_app.logger.warning('Thumbnail generation unavailable: Pillow is not installed')
+
 
 @blueprint.route('/firstrun', methods = ('GET', 'POST'))
 def first_run():
@@ -97,7 +103,6 @@ def first_run():
 @login_required('admin')
 def general():
 	"""General settings (restricted to admin users)"""
-	
 	# Update settings
 	settings_form = GeneralSettings()
 	# Default strings
@@ -233,8 +238,9 @@ def user():
 				flash('Users updated', 'info')
 				return redirect(url_for('settings.user'))
 		
-		# Don't prefill users until form successfully validates so it doesn't reset on a failed validation
-		if request.method == 'GET':
+		# Don't prefill users until form successfully validates
+		# so it doesn't reset on a failed validation
+		if (request.method == 'GET' or add_user_form.add.data):
 			# Warn if development keys are being used
 			check_conf()
 			try:

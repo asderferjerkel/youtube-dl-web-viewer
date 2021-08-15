@@ -1,10 +1,22 @@
+// How long (ms) to wait for further user input before firing events
+const inputDelay = 200;
+// Default seconds to skip with seek buttons if not specified by media
+const defaultSkipTime = 10;
+
 const header = document.getElementById("header");
+
 const playerContainer = document.getElementById("player");
 const player = playerContainer.querySelector("video");
+
 const infoContainer = document.getElementById("info");
 const info = infoContainer.querySelector(".info");
 const descriptionContainer = info.querySelector(".description-container");
+
 const searchContainer = document.getElementById("search");
+const searchInput = searchContainer.querySelector(".search-query");
+const searchField = searchContainer.querySelector(".search-field");
+let searchResults = searchContainer.querySelector(".search-results");
+
 const controls = document.getElementById("controls");
 let playlistList = document.getElementById("playlists");
 let videoList = document.getElementById("videos");
@@ -40,7 +52,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		const testImages = {
 			webpLossy: "data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA"
 		};
-		let img = new Image();
+		const img = new Image();
 		img.onload = function() {
 			// True if has dimensions
 			let result = (img.width > 0) && (img.height > 0);
@@ -59,22 +71,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		}
 	});
 	
-	// Load a video with unknown playlist
-	async function loadVideoPrePlaylist(videoID) {
-		// Load video without adding to history, wait for playlist ID
-		await loadVideo(videoID, false);
-		// Select playlist
-		selectItem("playlist", current.video.folder_id);
-		// Load playlist, select video
-		loadPlaylist(current.video.folder_id);
-	}
-	
 	// Load video/playlist from URL when page loaded
 	if (loadItem.type == "p") {
 		selectItem("playlist", loadItem.id);
 		// Load playlist without adding to history
 		loadPlaylist(loadItem.id, false);
 	} else if (loadItem.type == "v") {
+		// Load video and playlist without adding to history
 		loadVideoPrePlaylist(loadItem.id);
 	}
 	
@@ -105,16 +108,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Search/close clicked
 	header.querySelectorAll(".toggle-search button").forEach((button) => {
 		button.addEventListener("click", () => {
-			// Toggle each search/close button
-			header.querySelectorAll(".toggle-search").forEach((element) => {
-				element.classList.toggle("toggled");
-			});
-			// Toggle search bar
-			searchContainer.classList.toggle("hidden");
+			// Toggle search/close button and search bar
+			header.classList.toggle("search-toggled");
 			
-			const searchInput = searchContainer.querySelector(".search-query");
-			if (!searchContainer.classList.contains("hidden")) {
-				// Search opened, focus on input if <3 characters entered
+			if (header.classList.contains("search-toggled")) {
+				// Search opened, focus input if <3 characters entered
 				if (searchInput.value.length < 3) {
 					searchInput.focus();
 				}
@@ -125,18 +123,32 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		});
 	});
 	
+	// Search input focused, show results
+	searchContainer.addEventListener("focusin", showResults);
+	
 	// Search query entered
-	/*
-	listen for changes, if now >3 characters, search for results
-	in showResults, add listener for clicked outside results to hide them (but keep search bar)
-	clicking on search bar again (listen for focus not click, as opening search doesn't trigger click on it) should show results again
-	*/
+	let searchTimer;
+	searchInput.addEventListener("input", () => {
+		clearTimeout(searchTimer); // Reset delay if still typing
+		// Once inputDelay elapsed, run search
+		searchTimer = setTimeout(searchVideos, inputDelay);
+	});
+	
+	// Search field changed
+	searchField.addEventListener("change", () => {
+		// Run search without checking for input change
+		searchVideos(false);
+	});
+	
+	// todo: search field changed (don't check if query changed just >3)
+	// add arg for searchVideos (checkInputChanged = true) so timeout^^ does check
+	// false for field change skips change check
 	
 	// Playlist clicked
 	playlistList.querySelectorAll(".playlist").forEach(function(playlist) {
 		playlist.addEventListener("click", function() {
 			// Select self without scrolling to
-			let id = selectItem("playlist", null, this, false);
+			const id = selectItem("playlist", null, this, false);
 			// Load playlist
 			loadPlaylist(id);
 		});
@@ -158,14 +170,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Autoplay toggled
 	autoplayButton.addEventListener("click", () => {
 		// Autoplay on <-> off
-		let value = (displayPrefs["autoplay"] ? false : true);
-		updatePrefs("autoplay", value);
+		const autoplay = (displayPrefs["autoplay"] ? false : true);
+		updatePrefs("autoplay", autoplay);
 	});
 	
 	// Shuffle toggled
 	shuffleButton.addEventListener("click", () => {
 		// Shuffle on <-> off
-		let shuffle = (displayPrefs["shuffle"] ? false : true);
+		const shuffle = (displayPrefs["shuffle"] ? false : true);
 		updatePrefs("shuffle", shuffle);
 		if (shuffle && current.playlist.id !== undefined) {
 			// Shuffle on & playlist loaded, shuffle now
@@ -177,7 +189,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Change sort by/direction
 	function changeSort(value, isDirection = false) {
 		// Pref to change
-		let pref = (isDirection ? "sort_direction" : "sort_by");
+		const pref = (isDirection ? "sort_direction" : "sort_by");
 		updatePrefs(pref, value);
 		if (current.playlist.id !== undefined) {
 			// Playlist loaded, reload it
@@ -222,8 +234,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		// If not already expanded
 		if (!fullHeight) {
 			clearTimeout(resizeTimer); // Reset delay if resize ongoing
-			// Once resize stopped for 300ms, test description overflow
-			resizeTimer = setTimeout(descriptionOverflow, 300);
+			// Once resize stopped for inputDelay, test description overflow
+			resizeTimer = setTimeout(descriptionOverflow, inputDelay);
 		}
 	});
 });
@@ -231,25 +243,27 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
 // Reload and display the list of playlists
 async function loadFolders() {
-	let folders = await loadJSON("playlists");
+	const folders = await loadJSON("playlists");
 	// Sort folders by key and map values to array
 	// todo: map instead, keeps order
-	let foldersSort = Object.keys(folders.data).sort().map((index) => folders.data[index]);
-	if (foldersSort.length === 0) {
+	//let foldersSort = Object.keys(folders.data).sort().map((index) => folders.data[index]);
+	// todo: ^^delete that already sorted see api
+	if (folders.data.length === 0) {
 		// No folders, replace with placeholder
 		unloadCurrent("folders");
 	} else {
-		displayFolders(foldersSort);
+		displayFolders(folders.data);
 	}
 }
 
 function displayFolders(folders) {
 	const template = document.getElementById("template-playlist");
 	// Create empty list of folders from container
-	let newPlaylistList = playlistList.cloneNode(false);
+	const newPlaylistList = playlistList.cloneNode(false);
 	// Add each folder to list
 	folders.forEach((folder) => {
-		let folderElement = template.content.firstElementChild.cloneNode(true);
+		const folderElement = template.content.firstElementChild
+							  .cloneNode(true);
 		// Populate template
 		folderElement.setAttribute("data-playlist", folder.id);
 		folderElement.querySelector(".number")
@@ -259,7 +273,7 @@ function displayFolders(folders) {
 		// Playlist clicked
 		folderElement.addEventListener("click", function() {
 			// Select self without scrolling to
-			let id = selectItem("playlist", null, this, false);
+			const id = selectItem("playlist", null, this, false);
 			// Load playlist
 			loadPlaylist(id);
 		});
@@ -287,13 +301,16 @@ function displayFolders(folders) {
 
 // Load and display a playlist by its ID
 async function loadPlaylist(playlistID, addHistory = true) {
-	let playlist = await loadJSON("playlist", playlistID,
-								  displayPrefs.sort_by,
-								  displayPrefs.sort_direction);
-	current.playlist.length = 0; // Empty
+	const playlist = await loadJSON("playlist", playlistID,
+									displayPrefs.sort_by,
+									displayPrefs.sort_direction);
+	// todo: delete
+	//current.playlist.length = 0; // Empty
 	// Create array by play order
-	Object.keys(playlist.data).forEach(
-		key => current.playlist.push(playlist.data[key]));
+	//Object.keys(playlist.data).forEach(
+	//	key => current.playlist.push(playlist.data[key]));
+	current.playlist = playlist.data;
+	current.playlist.id = playlistID;
 	if (current.video === undefined) {
 		// Only update page URL if no video loaded
 		window.history[addHistory ? "pushState" : "replaceState"](
@@ -301,11 +318,10 @@ async function loadPlaylist(playlistID, addHistory = true) {
 				"", // title
 				baseUrl + "p/" + playlistID);
 	}
-	if (playlist.length === 0) {
+	if (current.playlist.length === 0) {
 		// Empty playlist, replace with placeholder
 		unloadCurrent("playlist");
 	} else {
-		current.playlist.id = playlistID;
 		displayPlaylist(current.playlist);
 	}
 }
@@ -317,24 +333,24 @@ function displayPlaylist(playlist) {
 	current.shuffledIndex = undefined;
 	const template = document.getElementById("template-video");
 	// Create empty playlist from container
-	let newVideoList = videoList.cloneNode(false);
+	const newVideoList = videoList.cloneNode(false);
 	// Add each video to list
 	playlist.forEach((video, index) => {
 		// Create inverse video.id: index mapping to look up play order by ID
 		current.index[video.id] = index;
 		
-		let videoElement = template.content.firstElementChild.cloneNode(true);
+		const videoElement = template.content.firstElementChild.cloneNode(true);
 		// Populate template
 		videoElement.setAttribute("data-video", video.id);
 		videoElement.querySelector(".position").textContent = index + 1;
-		videoElement.querySelector(".duration").textContent = video.duration;
+		videoElement.querySelector(".duration").textContent = video.d;
 		videoElement.querySelector(".number").textContent = index + 1;
-		videoElement.querySelector(".name").textContent = video.title;
+		videoElement.querySelector(".name").textContent = video.t;
 		
 		videoElement.addEventListener("click", function() {
 			// Video clicked
 			// Select self without scrolling to
-			let id = selectItem("video", null, this, false);
+			const id = selectItem("video", null, this, false);
 			if (displayPrefs.shuffle) {
 				// Reshuffle playlist, starting from clicked video
 				[current.shuffledPlaylist,
@@ -353,14 +369,17 @@ function displayPlaylist(playlist) {
 	videoList = newVideoList;
 	
 	// Observe visibility changes in videos to load thumbs
-	if (typeof(observer.disconnect) !== "undefined") {
-		// Disconnect any existing observer
-		observer.disconnect();
+	// todo: can get the new element from appendChild above and observe there
+	if (getThumbs) {
+		if (typeof(observer.disconnect) !== "undefined") {
+			// Disconnect any existing observer
+			observer.disconnect();
+		}
+		observer = createObserver();
+		videoList.querySelectorAll(".thumb").forEach((thumb) => {
+			observer.observe(thumb);
+		});
 	}
-	observer = createObserver();
-	videoList.querySelectorAll(".thumb").forEach((thumb) => {
-		observer.observe(thumb);
-	});
 	
 	if (displayPrefs.shuffle) {
 		// Shuffle enabled, generate shuffled playlist
@@ -378,7 +397,7 @@ function displayPlaylist(playlist) {
 // Load, display and play a video by its ID
 // If addHistory = false, replaces current entry instead of adding
 async function loadVideo(videoID, addHistory = true) {
-	let video = await loadJSON("video", videoID);
+	const video = await loadJSON("video", videoID);
 	current.video = video.data;
 	// Update page URL
 	window.history[addHistory ? "pushState" : "replaceState"](
@@ -394,12 +413,12 @@ function displayVideo(video) {
 	// Remove current poster if present
 	player.removeAttribute("poster");
 	// Remove current source
-	let source = player.getElementsByTagName("source")[0];
+	const source = player.getElementsByTagName("source")[0];
 	if (source !== undefined) {
 		player.removeChild(source);
 	}
 	// Create new source
-	var newSource = document.createElement("source");
+	const newSource = document.createElement("source");
 	newSource.src = video.path;
 	newSource.type = video.video_format;
 	player.appendChild(newSource);
@@ -420,7 +439,7 @@ function displayVideo(video) {
 	    display: selector to hide if data missing
 	    contents: selector to fill with data (if different from display)
 	*/
-	let metadataFields = {
+	const metadataFields = {
 		title: {
 			display: ".title" },
 		uploader: {
@@ -433,7 +452,8 @@ function displayVideo(video) {
 	};
 	
 	for ([key, field] of Object.entries(metadataFields)) {
-		let contentField = (field.contents !== undefined ? field.contents : field.display);
+		const contentField = (field.contents !== undefined
+						   ? field.contents : field.display);
 		if (video[key] !== null) {
 			// Field has data, fill and show
 			info.querySelector(contentField).textContent = video[key];
@@ -451,7 +471,7 @@ function displayVideo(video) {
 	  display: list of selectors to hide if data missing
 	  contents: selector to fill with data
 	*/
-	let listFields = {
+	const listFields = {
 		categories: {
 			display: [".categories-label", ".categories"],
 			contents: ".categories" },
@@ -473,7 +493,8 @@ function displayVideo(video) {
 		
 		info.querySelector(field.contents).textContent = fieldData;
 		field.display.forEach(selector => {
-			info.querySelector(selector).classList[fieldHidden ? "add" : "remove"]("hidden");
+			info.querySelector(selector)
+				.classList[fieldHidden ? "add" : "remove"]("hidden");
 		});
 	});
 	
@@ -485,7 +506,8 @@ function displayVideo(video) {
 	
 	// Views (add separators)
 	if (video.view_count !== null) {
-		info.querySelector(".views-value").textContent = Number(video.view_count).toLocaleString();
+		info.querySelector(".views-value")
+			.textContent = Number(video.view_count).toLocaleString();
 		info.querySelector(".views").classList.remove("hidden");
 	} else {
 		info.querySelector(".views").classList.add("hidden");
@@ -493,7 +515,7 @@ function displayVideo(video) {
 	}
 	
 	// Original URL
-	let link = info.querySelector(".link");
+	const link = info.querySelector(".link");
 	if (video.video_url !== null) {
 		link.href = video.video_url;
 		link.classList.remove("hidden");
@@ -513,45 +535,57 @@ function displayVideo(video) {
 	  e.g. 1.5 stars is 29% (71% inset)
 	*/
 	if (video.average_rating !== null) {
-		let inset = Math.round((100 - ((video.average_rating * 16) + (Math.floor(video.average_rating) * 5))) * 10) / 10; // * 10, round, / 10 gives 1 decimal place
+		// Round to 1 decimal place
+		let inset = Math.round((100 - ((video.average_rating * 16) + 
+					(Math.floor(video.average_rating) * 5))) * 10) / 10;
 		inset = (inset <= 0 ? 0 : inset); // Avoid -5% inset on a perfect 5*
-		info.querySelector(".stars-filled").style.clipPath = "inset(0 " + inset + "% 0 0)";
-		// Number too
-		let rating = Math.round(video.average_rating * 100) / 100;
+		info.querySelector(".stars-filled")
+			.style.clipPath = "inset(0 " + inset + "% 0 0)";
+		// Numeric rating rounded to 2 places
+		const rating = Math.round(video.average_rating * 100) / 100;
 		info.querySelector(".rating-value").textContent = rating;
-		info.querySelector(".rating").classList.remove("hidden"); // Grid for overlaying images
+		// Likes/dislikes as tooltip
+		if (video.like_count !== null && video.dislike_count !== null) {
+			info.querySelector(".rating").title = video.like_count +
+				" likes, " + video.dislike_count + " dislikes";
+		}
+		info.querySelector(".rating").classList.remove("hidden");
 	} else {
 		// Default to empty stars & hide
 		info.querySelector(".rating").classList.add("hidden");
-		info.querySelector(".stars-filled").style.clipPath = "inset(0 100% 0 0)";
+		info.querySelector(".stars-filled")
+			.style.clipPath = "inset(0 100% 0 0)";
 		info.querySelector(".rating-value").textContent = "";
 	}
 	
 	// Date (if uploaded missing, get downloaded from modtime)
 	if (video.upload_date === null && video.modification_time !== null) {
-		info.querySelector(".date-value").textContent = video.modification_time;
+		info.querySelector(".date-value")
+			.textContent = video.modification_time;
 		info.querySelector(".date-type").textContent = "Downloaded";
 		info.querySelector(".date").classList.remove("hidden");
 	} else {
 		// Default label
 		info.querySelector(".date-type").textContent = "Uploaded";
 		// Date downloaded as tooltip
-		info.querySelector(".date").title = "Downloaded " + video.modification_time;
+		info.querySelector(".date").title = "Downloaded " +
+											video.modification_time;
 	}
 	
 	// Resolution and/or fps (add suffixes and concat)
-	let height = (video.height !== null ? video.height + "p" : null);
-	let fps = (video.fps !== null
-			? Math.round(video.fps * 100) / 100 + "fps" : null);
-	let format = [height, fps].filter(Boolean).join(" ");
-	info.querySelector(".resolution-fps").textContent = format; // Empty if both missing
+	const height = (video.height !== null ? video.height + "p" : null);
+	const fps = (video.fps !== null
+			  ? Math.round(video.fps * 100) / 100 + "fps" : null);
+	// Empty string if both missing
+	const format = [height, fps].filter(Boolean).join(" ");
+	info.querySelector(".resolution-fps").textContent = format;
 	if (format !== "") {
 		// Show if at least one of resolution, format or codec are present
 		info.querySelector(".format").classList.remove("hidden");
 	}
 	
 	// Description (replace newlines with <br>)
-	let description = descriptionContainer.querySelector(".description");
+	const description = descriptionContainer.querySelector(".description");
 	if (video.description !== null) {
 		description.innerText = video.description; // Insert safely
 		description.classList.remove("hidden");
@@ -576,10 +610,22 @@ function displayVideo(video) {
 	playVideo();
 }
 
+// Load a video with unknown playlist
+async function loadVideoPrePlaylist(videoID, addHistory = false) {
+	// Load video optionally adding to history, wait for playlist ID
+	await loadVideo(videoID, addHistory);
+	// Select playlist
+	selectItem("playlist", current.video.folder_id);
+	// Load playlist, select video
+	loadPlaylist(current.video.folder_id);
+}
+
 
 // Load and display thumbnails from a Map of videoID: element
 const thumbsPerRq = 10;
 async function loadThumbs(thumbQueue) {
+	const haveObserver = (typeof(observer.unobserve) === "function"
+					   ? true : false);
 	let videoIDs = Array.from(thumbQueue.keys());
 	// Split into chunks for smaller API responses
 	videoIDs = [...Array(Math.ceil(videoIDs.length / thumbsPerRq))]
@@ -600,9 +646,11 @@ async function loadThumbs(thumbQueue) {
 			if (videoID in thumbs.data) {
 				element.src = thumbs.data[videoID].d;
 			}
-			// Stop observing this video
+			// Stop observing this element
 			// (also prevents retry if no thumb returned)
-			observer.unobserve(element);
+			if (haveObserver) {
+				observer.unobserve(element);
+			}
 		};
 	}));
 };
@@ -610,7 +658,7 @@ async function loadThumbs(thumbQueue) {
 // Watch for changes in visible playlist items and trigger thumbnail loads
 let observer = {};
 function createObserver(rootElement) {
-	obs = new IntersectionObserver(intersectionChanged, {
+	const obs = new IntersectionObserver(intersectionChanged, {
 		root: rootElement,
 		threshold: 0.2, // Trigger when proportion visible
 		delay: 100 // Don't trigger events too often
@@ -643,18 +691,41 @@ function intersectionChanged(entries, observer) {
 	if (pendingThumbs.length > 0) {
 		// Have thumbs queued, reset delay
 		clearTimeout(intersectionTimer);
-		// Once no more thumbs queued for 200ms, get thumbs
+		// Once no more thumbs queued for inputDelay, get thumbs
 		// (with queue at time of calling, in case more added)
-		intersectionTimer = setTimeout(thumbsFromPending, 200);
+		intersectionTimer = setTimeout(thumbsFromPending, inputDelay);
 	}
 };
 
 
 // Search metadata fields for videos
+// todo: remove many console.log
+let prevQuery = searchInput.value;
+function searchVideos(checkInputChanged = true) {
+	const searchQuery = searchInput.value;
+	if (!checkInputChanged || searchQuery !== prevQuery) {
+		// Input changed
+		console.log('input changed', prevQuery, '->', searchQuery);
+		prevQuery = searchQuery;
+		if (searchQuery.length === 0) {
+			// Input cleared, clear results
+			console.log('input cleared');
+			displaySearch(null);
+		} else if (searchQuery.length >= 3) {
+			// Input over minimum length, do search
+			console.log('doing search');
+			loadSearch(searchField.value, searchQuery);
+		} else {
+			console.log('under min length');
+		}
+	}
+};			
+
 let abortController = null;
-async function searchVideos(field, query) {
+async function loadSearch(field, query) {
 	if (abortController) {
 		// Cancel the previous request if pending
+		console.log('cancelling previous request');
 		abortController.abort();
 		abortController = null;
 	}
@@ -663,18 +734,69 @@ async function searchVideos(field, query) {
 	try {
 		const results = await loadJSON(abortController.signal,
 									   "POST", query, "search", field);
-		console.log(results); // todo: delete
-		return results.data; // also
-		//displaySearchResults(results.data);
+		displaySearch(results.data);
 	} catch(err) {
-		// Request aborted
+		// Request aborted or errored
 	} finally {
 		abortSearchController = null;
 	}
 };
 
-function displaySearchResults(results) {
-	// clear existing results (same clonenode so clears listeners)
+// Display search results, or pass results = null to clear
+function displaySearch(results) {
+	// Create empty results list from container
+	let newResultsList = searchResults.cloneNode(false);
+	let thumbQueue = new Map();
+	if (results) {
+		// show new results
+		console.log('have results');
+		if (results.length > 0) {
+			const template = document.getElementById("template-result");
+			results.forEach((result) => {
+				let resultElement = template.content.firstElementChild
+											.cloneNode(true);
+				// Populate template
+				resultElement.setAttribute("data-video", result.id);
+				resultElement.querySelector(".name").textContent = result.t;
+				resultElement.querySelector(".folder").textContent = result.p;
+				// Include formatting from escaped snippet
+				resultElement.querySelector(".match").innerHTML = result.s;
+				
+				resultElement.addEventListener("click", async function() {
+					// Search result clicked
+					const id = this.getAttribute("data-video") << 0;
+					// Hide results list
+					searchResults.classList.add("hidden");
+					// Load video and playlist, adding to history
+					loadVideoPrePlaylist(id, true);
+				});
+				
+				// Add result to list
+				newElement = newResultsList.appendChild(resultElement);
+				// Add thumbnail to queue
+				thumbQueue.set(result.id, newElement.querySelector(".thumb"));
+			});
+		} else {
+			// 0 results, insert placeholder
+			let placeholder = document.createElement("div");
+			placeholder.className = "placeholder";
+			placeholder.textContent = "No results";
+			newResultsList.appendChild(placeholder);
+		}
+	}
+	
+	// Replace existing results list, clearing listeners
+	searchResults.parentNode.replaceChild(newResultsList, searchResults);
+	searchResults = newResultsList;
+	showResults();
+	
+	console.log(thumbQueue);
+	if (getThumbs && thumbQueue.size > 0) {
+		// Trigger thumbnail load
+		loadThumbs(thumbQueue);
+	}
+	
+	
 	// display matches: template w/ thumb placeholder (push into queue w/ ID), title, snippet, click listener to loadVideo
 	// load thumbs
 	
@@ -683,10 +805,31 @@ function displaySearchResults(results) {
 	// or tapping anywhere but it
 	// or search icon turns into an X
 	// have fixed max height but can scroll
+	/*
+	listen for changes
+	if changed, start timer
+	if now >3 characters, search for results
+	in showResults, add listener for clicked outside results to hide them (but keep search bar)
+	clicking on search bar again (listen for focus not click, as opening search doesn't trigger click on it) should show results again
+	*/
 	
 	// if that works in the right order then sack off this indexed dict bs
+	// (compare with rank order from shell then remove rank from db return)
 };
 
+// Show results container
+function showResults() {
+	searchResults.classList.remove("hidden");
+	// Click outside search hides
+	document.addEventListener("click", function hideResults(event) {
+		console.log(event.target);
+		if (event.target.closest("#search") === null) {
+			searchResults.classList.add("hidden");
+			console.log("removing listener");
+			document.removeEventListener("click", hideResults);
+		}
+	});
+};
 
 // Play the currently-loaded video
 const playManual = playerContainer.querySelector(".play-manual");
@@ -950,7 +1093,7 @@ function selectItem(type = "playlist", itemID = null,
 			return element;
 		} else {
 			// Element supplied, return numeric ID
-			return (+element.getAttribute(attribute));
+			return element.getAttribute(attribute) << 0;
 		}
 	}
 }
@@ -1036,8 +1179,6 @@ function updatePositionState() {
 	}
 }
 
-// Default seconds to skip with seek buttons
-let defaultSkipTime = 10;
 if ("mediaSession" in navigator) {
 	navigator.mediaSession.setActionHandler("play", async function() {
 		// No need to set metadata again as notification only shown

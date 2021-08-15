@@ -16,7 +16,7 @@
 		<script>
 			const csrfToken = "{{ csrf_token() }}";
 			const baseUrl = "{{ url_for('index.index') }}";
-			let loadingSpinners;
+			let loadingSpinner;
 			
 			// Wait times in milliseconds
 			const delay = {
@@ -32,8 +32,8 @@
 			};
 				
 			document.addEventListener("DOMContentLoaded", (event) => {
-				// Select loading spinners
-				loadingSpinners = document.querySelectorAll(".loading .sprite");
+				// Select loading spinner
+				loadingSpinner = document.querySelector(".loading");
 				
 				// Hide message on click
 				document.querySelectorAll(".flash").forEach(function(message) {
@@ -44,10 +44,10 @@
 				});
 				
 				// Show/hide menu on small screens
-				document.querySelector(".toggle-menu .menu button")
+				document.querySelector(".toggle-menu .menu")
 						.addEventListener("click", () => {
-					document.querySelector("header .navigation")
-							.classList.toggle("toggled");
+					document.getElementById("header")
+							.classList.toggle("menu-toggled");
 				});
 				
 				if ("hidden" in document) {
@@ -202,9 +202,7 @@
 			*/
 			async function loadJSON(...args) {
 				// Show loading spinner
-				loadingSpinners.forEach((spinner) => {
-					spinner.style.display = "inline-flex";
-				});
+				loadingSpinner.style.visibility = "visible";
 				
 				let fetchParams = {
 					method: "GET",
@@ -239,9 +237,7 @@
 				const json = await response.json();
 				
 				// Hide loading spinner
-				loadingSpinners.forEach((spinner) => {
-					spinner.style.display = "none";
-				});
+				loadingSpinner.style.visibility = "hidden";
 				
 				if (!response.ok) {
 					if (json.message != null) {
@@ -340,36 +336,39 @@
 			<div class="header-background"></div>
 			<header id="header">
 				<a class="site-logo" href="{{ url_for('index.index') }}" aria-label="Home">{{ render_sprite('site') }}</a>
-				<nav class="toggle-menu">
+				<nav class="pages">
+				{% if g.user and g.user['is_admin'] == 1 %}
+					<ul>
+					{% for item in nav.top %}
+						<li class="{{ 'active' if item.is_active }}">
+							<a href="{{ item.url }}" title="{{ item.label|capitalize }}">{{ render_sprite(item.label) }}</a>
+						</li>
+					{% endfor %}
+					</ul>
+				{% endif %}
+				</nav>
+				{% block search %}{% endblock %}
+				<nav class="toggles">
 					<ul>
 						<li class="loading">{{ render_sprite('loading') }}</li>
 						{% block search_button %}{% endblock %}
-						<li class="menu"><button title="Menu">{{ render_sprite('menu') }}</button></li>
+						<li class="toggle-menu">
+							<button class="menu" title="Menu">{{ render_sprite('menu') }}</button>
+						</li>
 					</ul>
 				</nav>
-				<nav class="navigation">
-					<ul class="user">
-						<li class="loading">{{ render_sprite('loading') }}</li>
-						{{ self.search_button() }}
-						{% if g.user %}
-							<li><a href="{{ url_for('settings.user') }}" title="My account">{{ render_sprite('user') }} {{ g.user['username'] }}</a></li>
-							<li><a href="{{ url_for('auth.logout') }}" title="Log out">{{ render_sprite('logout') }}</a></li>
-						{% else %}
-							<li><a href="{{ url_for('auth.login') }}" title="Log in">{{ render_sprite('login') }}</a></li>
-						{% endif %}
-					</ul>
-					<ul class="pages">
-					{% if g.user and g.user['is_admin'] == 1 %}
-						{% for item in nav.top %}
-							<li class="{{ 'active' if item.is_active }}">
-								<a href="{{ item.url }}" title="{{ item.label|capitalize }}">{{ render_sprite(item.label) }}</a>
-							</li>
-						{% endfor %}
+				<nav class="user">
+					<ul>
+					{% if g.user %}
+						<li><a href="{{ url_for('settings.user') }}" title="My account">{{ render_sprite('user') }} {{ g.user['username'] }}</a></li>
+						<li><a href="{{ url_for('auth.logout') }}" title="Log out">{{ render_sprite('logout') }}</a></li>
+					{% else %}
+						<li><a href="{{ url_for('auth.login') }}" title="Log in">{{ render_sprite('login') }}</a></li>
 					{% endif %}
 					</ul>
 				</nav>
-			{% block search %}{% endblock %}
 			</header>
+			
 			
 			<section class="messages">
 			{% with messages = get_flashed_messages(with_categories = true) %}
@@ -426,5 +425,6 @@
 				<button class="action"></button>
 			</template>
 		</section>
+		{% block page_bottom %}{% endblock %}
 	</body>
 </html>

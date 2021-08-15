@@ -11,7 +11,7 @@
 			{{ render_field(form.disk_path) }}
 			<div class="field-help">Path must exist. Subfolders will be treated as playlists. You can move your videos and update this path without a database rescan.</div>
 			{{ render_field(form.web_path) }}
-			<div class="field-help">Also thumbnails and subtitles.</div>
+			<div class="field-help">Also thumbnails and subtitles</div>
 			{{ render_field(form.metadata_source) }}
 			<div class="field-help">Use .info.json files for metadata if present. Requires a database rescan to update existing videos if changed.</div>
 			{{ render_field(form.filename_format) }}
@@ -32,6 +32,7 @@
 		<form class="grid-form" action="{{ url_for('db.init') }}">
 			<label for="last-refreshed">Database last updated</label>
 			<div id="last-refreshed" class="field">{{ last_refreshed }}</div>
+			<div class="field-help"></div>
 			<label for="next-refresh">Next database update</label>
 			<div id="next-refresh" class="field">{{ next_refresh }}</div>
 			<div class="field-help">Triggered when the video page is open</div>
@@ -75,7 +76,7 @@
 				</ul>
 			</dd>
 			<dd>Use the <strong>video filename delimiter</strong> to specify how your parameters are separated, including spaces (e.g. "<pre> - </pre>"). Since video titles could contain this delimeter, if you include <pre>{title}</pre> in your format template, the parser will first try to match all the other parameters, leaving what remains as the video title. This is likely to break with some filename formats, so I recommend you download .info.json files along with your videos!</dd>
-			<dd>To skip collecting metadata entirely (videos will be titled by filename only), uncheck <strong>scan for metadata files</strong> and delete the contents of <strong>filename format</strong></dd>
+			<dd>To skip collecting metadata entirely (videos will be titled by filename only), uncheck <strong>scan for metadata files</strong> and delete the contents of <strong>filename format</strong>.</dd>
 			<dt>Thumbnails</dt>
 			<dd>youtube-dl's <pre>--write-thumb</pre> option downloads a thumbnail with each video. We use it as the player's placeholder if present, but it's too high resolution to use in playlists without slowing down the browser. If <strong>generate small thumbnails for playlists</strong> is checked, youtube-dl-web-viewer will create and store smaller versions in the database for playlist display. To do this requires the optional Python module <pre>Pillow</pre>, which you can install in your virtual environment with <pre>easy_install Pillow</pre>. Before installing, ensure you have installed your OS's development libraries for <strong>zlib</strong>, <strong>jpeg</strong> and (optionally) <strong>webp</strong>:</dd>
 			<dd>

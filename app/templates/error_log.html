@@ -4,6 +4,46 @@
 	<div class="full-width">
 		<h2>{{ title }}</h2>
 		
+		<ul class="pagination">
+			<li>
+			{% if page <= 1 %}
+				<a class="disabled" title="First page">
+			{% else %}
+				<a href="{{ url_for('index.error_log') }}" title="First page">
+			{% endif %}
+					{{ render_sprite('previous') }}
+				</a>
+			</li>
+			<li>
+			{% if page <= 1 %}
+				<a class="disabled" title="Previous page">
+			{% else %}
+				<a href="{{ url_for('index.error_log') ~ '/' ~ (page - 1) }}" title="Previous page">
+			{% endif %}
+					{{ render_sprite('show-more', 'previous') }}
+				</a>
+			</li>
+			<li>Page {{ page }} of {{ last_page }}</li>
+			<li>
+			{% if page >= last_page %}
+				<a class="disabled" title="Next page">
+			{% else %}
+				<a href="{{ url_for('index.error_log') ~ '/' ~ (page + 1) }}" title="Next page">
+			{% endif %}
+					{{ render_sprite('show-more', 'next') }}
+				</a>
+			</li>
+			<li>
+			{% if page >= last_page %}
+				<a class="disabled" title="Last page">
+			{% else %}
+				<a href="{{ url_for('index.error_log') ~ '/' ~ last_page }}" title="Last page">
+			{% endif %}
+					{{ render_sprite('next') }}
+				</a>
+			</li>
+		</ul>
+		
 		<table class="error-log">
 			<thead class="has-bg">
 				<tr>
@@ -13,6 +53,7 @@
 				</tr>
 			</thead>
 			<tbody>
+			{% if log|length > 0 %}
 				{% for entry in log %}
 					<tr>
 						<td>{{ entry.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}
@@ -20,14 +61,19 @@
 						<td>{{ entry.message }}</td>
 					</tr>
 				{% endfor %}
+			{% else %}
+				<tr>
+					<td></td>
+					<td></td>
+					<td><span class="placeholder">No errors (yet!)</span></td>
+				</tr>
+			{% endif %}
 			</tbody>
 		</table>
 		
-		<div class="form">
-			<form method="POST" action="{{ url_for('index.error_log') }}">
-				{{ form.csrf_token }}
-				{{ form.submit }}
-			</form>
-		</div>
+		<form method="POST" action="{{ url_for('index.error_log') }}">
+			{{ form.csrf_token }}
+			{{ form.submit }}
+		</form>
 	</div>
 {% endblock %}

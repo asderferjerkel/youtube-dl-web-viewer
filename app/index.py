@@ -1,13 +1,14 @@
 import functools
 import sqlite3
 
-from flask import Blueprint, g, current_app, flash, redirect, render_template, request, session, url_for
+from flask import (Blueprint, g, current_app, flash, redirect, render_template,
+				   request, session, url_for)
 
 from flask_wtf import FlaskForm
 from wtforms import SubmitField
 
 from app.auth import login_required
-from app.db import get_db, get_params, get_log, clear_log
+from app.db import get_db, get_params, get_log, count_log, clear_log
 from app.api import list_folders
 
 blueprint = Blueprint('index', __name__)
@@ -15,34 +16,23 @@ blueprint = Blueprint('index', __name__)
 class ClearLogForm(FlaskForm):
 	submit = SubmitField('Clear error log')
 
+
 @blueprint.route('/', defaults = {'item_type': None, 'item_id': None})
 @blueprint.route('/<string:item_type>/<int:item_id>')
 @login_required('guest')
 def index(item_type, item_id):
-	# check if db needs updating: wrap with @request_queued (after login_required) + import from app.helpers
-		 # see https://exploreflask.com/en/latest/views.html
-		 # or just do in js
-	# do the same for check_conf (change to @warn_conf)
-	# could do the same for @require_db, @require_first_run
-	# no video/folder selected to start, just folders
-	  # so can supply http basic auth in html if necessary and use XHR to set headers
-	  # https://stackoverflow.com/questions/3823357/how-to-set-the-img-tag-with-basic-authentication
-	# feed w/ folder list
-	# set some var if guest so JS doesn't call /api/status at all
-	# many dangers: https://semgrep.dev/docs/cheat-sheets/flask-xss/ https://flask.palletsprojects.com/en/1.1.x/security/
-	
 	try:
 		params = get_params()
 	except sqlite3.OperationalError as e:
-		flash('Failed to get params: Database error')
+		flash('Failed to get params: Database error', 'error')
 		current_app.logger.error('Failed to get params: ' + str(e))
 	
-	# Get list of playlists from database
+	# Get list of playlists
 	try:
 		playlists = list_folders()
 	except sqlite3.OperationalError as e:
 		current_app.logger.error('Failed to list playlists: ' + str(e))
-		flash('Failed to list playlists: Database error')
+		flash('Failed to list playlists: Database error', 'error')
 		playlists = None
 	
 	if len(playlists) == 0:
@@ -51,10 +41,10 @@ def index(item_type, item_id):
 	# Load item from URL on page load
 	load_item = {'type': item_type, 'id': item_id}
 	
-	# Logged out: no API, default display prefs (no cookies resets on refresh)
+	# Logged out: no API, default display prefs (no cookies: resets on refresh)
 	api_available = False
 	display_prefs = current_app.config['DISPLAY_PREFS']
-	# Logged in: API available, display prefs stored per session
+	# Logged in: API available; display prefs from session
 	if g.user is not None:
 		if params['last_refreshed'] != 0:
 			# Autorefresh doesn't trigger until db has been refreshed once
@@ -67,11 +57,19 @@ def index(item_type, item_id):
 	if params['generate_thumbs'] == 1:
 		get_thumbs = True
 	
-	return render_template('index.html', playlists = playlists, load_item = load_item, api_available = api_available, display_prefs = display_prefs, web_path = params['web_path'], get_thumbs = get_thumbs)
+	return render_template('index.html', playlists = playlists,
+						   load_item = load_item,
+						   api_available = api_available,
+						   display_prefs = display_prefs,
+						   web_path = params['web_path'],
+						   get_thumbs = get_thumbs)
 
-@blueprint.route('/log', methods=('GET', 'POST'))
+@blueprint.route('/log', methods = ('GET', 'POST'), defaults = {'page': 1})
+@blueprint.route('/log/<int:page>', methods = ('GET', 'POST'))
 @login_required('admin')
-def error_log():
+def error_log(page):
+	# Entries per page
+	per_page = 50;
 	log = None
 	form = ClearLogForm()
 	
@@ -79,14 +77,23 @@ def error_log():
 		try:
 			clear_log()
 		except sqlite3.OperationalError:
-			flash('Could not clear log')
+			flash('Failed to clear log: Database error', 'error')
 		else:
-			flash('Log cleared')
+			flash('Log cleared', 'info')
 			return redirect(url_for('index.error_log'))
 	
+	skip_entries = (page * per_page) - per_page
 	try:
-		log = get_log()
+		log = get_log(per_page, skip_entries)
+		# Total entry count for pagination
+		total_entries = count_log()
 	except sqlite3.OperationalError:
-		flash('Could not load log: Database error')
+		flash('Failed to load log: Database error', 'error')
+		total_entries = 0
 	
-	return render_template('error_log.html', title = 'Error log', log = log, form = form)
+	# Last page for pagination
+	total_pages = int(((total_entries - (total_entries % per_page)) / 
+						per_page) + 1)
+	
+	return render_template('error_log.html', title = 'Error log', log = log,
+						   form = form, page = page, last_page = total_pages)

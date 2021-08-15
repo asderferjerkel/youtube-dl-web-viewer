@@ -2,43 +2,30 @@
 
 {% block search_button %}
 	<li class="toggle-search">
-		<button class="search-button" title="Search">{{ render_sprite('search') }}</button>
-		<button class="close" title="Close search">{{ render_sprite('close') }}</button>
+		<button class="show-search" title="Search">{{ render_sprite('search') }}</button>
+		<button class="hide-search" title="Close search">{{ render_sprite('close') }}</button>
 	</li>
 {% endblock %}
 
 {% block search %}
-	<section id="search" class="search hidden">
-		<div class="background-container">
-			<div class="input-container">
-				<input class="search-query" type="text" placeholder="Search">
-				<label for="field-container">in:</label>
-				<div id="field-container" class="field-container">
-					<select class="search-field" title="Field to search">
-						<option value="all" selected>Any field</option>
-						{% for column, friendly_name in config.SEARCH_COLUMNS.items() %}
-							<option value="{{ column }}">{{ friendly_name }}</option>
-						{% endfor %}
-					</select>
-					<div class="select-arrow">
-						{{ render_sprite('show-more') }}
-					</div>
+	<section id="search" class="search">
+		<div class="input-container">
+			<input class="search-query" type="text" placeholder="Search">
+			<label for="field-container">in:</label>
+			<div id="field-container" class="field-container">
+				<select class="search-field" title="Field to search">
+					<option value="all" selected>Any field</option>
+					{% for column, friendly_name in config.SEARCH_COLUMNS.items() %}
+						<option value="{{ column }}">{{ friendly_name }}</option>
+					{% endfor %}
+				</select>
+				<div class="select-arrow">
+					{{ render_sprite('show-more') }}
 				</div>
 			</div>
-			<div class="search-results">
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-				<div class="result">test aaaaa</div>
-			</div>
+		</div>
+		<div class="results-container">
+			<ol class="search-results"></ol>
 		</div>
 	</section>
 {% endblock %}
@@ -179,14 +166,27 @@
 				<div class="position"></div>
 				<div class="thumbnail">
 					<div class="duration"></div>
-					<img class="thumb" width="{{ config.THUMBNAIL_SIZE[0] }}" height="{{ config.THUMBNAIL_SIZE[1] }}" src="{{ url_for('static', filename = 'empty.gif') }}" alt="">
+					<img class="thumb" width="{{ config.THUMBNAIL_SIZE[0] }}" height="{{ config.THUMBNAIL_SIZE[1] }}" src="{{ url_for('static', filename = 'empty.gif') }}">
 					<div class="number"></div>
 				</div>
 				<div class="name"></div>
 			</li>
 		</template>
+		<template id="template-result">
+			<li class="result">
+				<img class="thumb" width="{{ config.THUMBNAIL_SIZE[0] }}" height="{{ config.THUMBNAIL_SIZE[1] }}" src="{{ url_for('static', filename = 'empty.gif') }}">
+				<div class="name"></div>
+				<div class="snippet">
+					<span class="folder"></span>
+					&nbsp;&#8226;&nbsp;
+					<span class="match"></span>
+				</div>
+			</li>
+		</template>
 	</section>
+{% endblock %}
 
+{% block page_bottom %}
 	<script>
 		const apiAvailable = {{ api_available | tojson }};
 		const webPath = {{ web_path | tojson }};

@@ -1,3 +1,5 @@
+import re
+
 from flask import current_app, g, flash
 
 from flask_navigation import Navigation
@@ -22,7 +24,7 @@ def format_duration(seconds):
 	"""Converts int seconds to a DD:HH:MM:SS / HH:MM:SS / MM:SS / 0:SS-style duration, without leading zeroes"""
 	try:
 		int(seconds)
-	except ValueError:
+	except (TypeError, ValueError):
 		return seconds
 	minutes, seconds = divmod(seconds, 60)
 	hours, minutes = divmod(minutes, 60)
@@ -35,3 +37,17 @@ def format_duration(seconds):
 		return f'{minutes:d}:{seconds:02d}'
 	else:
 		return f'0:{seconds:02d}'
+
+escape_fts_re = re.compile(r'\s+|(".*?")')
+def escape_fts_query(query):
+	"""Escape a search query string to fit FTS query syntax"""
+	if query.count('"') % 2:
+		# Add " to ensure even number of quotes
+		query += '"'
+	# Split query into phrases separated by spaces or "quoted", discarding spaces
+	phrases = escape_fts_re.split(query)
+	# Discard empty terms
+	phrases = [p for p in phrases if p and p != '""']
+	# Quote each phrase and concat into space-separated string
+	return ' '.join(f'"{phrase}"' if not phrase.startswith('"')
+								  else phrase for phrase in phrases)

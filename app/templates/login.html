@@ -5,11 +5,19 @@
 	<div class="full-width">
 		<h2>{{ title }}</h2>
 		
-		<form method="POST" action="{{ url_for('auth.login') }}">
+		<form class="grid-form no-help" method="POST" action="{{ url_for('auth.login') }}">
 			{{ form.csrf_token }}
 			{{ render_field(form.username) }}
 			{{ render_field(form.password) }}
 			<input name="submit" type="submit" value="Login">
 		</form>
 	</div>
+{% endblock %}
+
+{% block page_bottom %}
+	<script>
+		document.addEventListener("DOMContentLoaded", (event) => {
+			document.getElementById("username").focus();
+		});
+	</script>
 {% endblock %}
