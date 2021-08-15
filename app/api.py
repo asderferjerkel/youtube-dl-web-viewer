@@ -71,7 +71,7 @@ def set_task(status = 0, folder = None, of_folders = None, file = None, of_files
 	db = get_db()
 	query = ('UPDATE tasks SET '
 			 'status = ?, folder = ?, of_folders = ?, file = ?, '
-			 'of_files = ?, message = ? '
+			 'of_files = ?, message = ? ')
 			 # Limit update to first row
 			 # todo: don't need this?
 			 #'WHERE rowid IN (SELECT rowid FROM tasks '
