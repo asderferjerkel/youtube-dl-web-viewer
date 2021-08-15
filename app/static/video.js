@@ -112,10 +112,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
 			header.classList.toggle("search-toggled");
 			
 			if (header.classList.contains("search-toggled")) {
-				// Search opened, focus input if <3 characters entered
-				if (searchInput.value.length < 3) {
-					searchInput.focus();
-				}
+				// Search opened, focus & select input
+				searchInput.select();
 			} else {
 				// Search closed, deselect input to hide keyboard on mobile
 				searchInput.blur();
@@ -139,10 +137,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		// Run search without checking for input change
 		searchVideos(false);
 	});
-	
-	// todo: search field changed (don't check if query changed just >3)
-	// add arg for searchVideos (checkInputChanged = true) so timeout^^ does check
-	// false for field change skips change check
 	
 	// Playlist clicked
 	playlistList.querySelectorAll(".playlist").forEach(function(playlist) {
@@ -598,6 +592,7 @@ function displayVideo(video) {
 	infoContainer.classList.remove("hidden");
 	// Don't fade description if previously expanded
 	// todo: fix this. only do on small screens?
+	// also todo: set max-height on info not descriptioncontainer, consider long titles
 	if (!fullHeight) {
 		// Set description container to overflow
 		fullDescription(false);
