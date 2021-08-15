@@ -13,7 +13,7 @@ from wtforms.validators import ValidationError
 from wtforms.widgets import HiddenInput
 
 try:
-	import pysqlite3 as sqlite3
+	from pysqlite3 import dbapi2 as sqlite3
 except ImportError:
 	import sqlite3
 from app.db import get_db, get_params
