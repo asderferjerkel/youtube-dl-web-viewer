@@ -39,9 +39,9 @@ def init_app(app):
 	with app.app_context():
 		try:
 			set_task(status = 0)
-		except:
+		except sqlite3.OperationalError as e:
 			# Task table could be missing if db not initialised
-			pass
+			current_app.logger.warning(f'Could not reset tasks: {e}')
 
 def csrf_protect(view):
 	@functools.wraps(view)
