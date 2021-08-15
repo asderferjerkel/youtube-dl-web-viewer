@@ -94,7 +94,7 @@ def first_run():
 			# Mark setup as complete
 			db = get_db()
 			try:
-				db.execute('UPDATE params SET setup_complete = 1 ORDER BY rowid LIMIT 1')
+				db.execute('UPDATE params SET setup_complete = 1')
 			except sqlite3.OperationalError as e:
 				current_app.logger.error(f'Failed to mark setup as complete: {e}')
 				flash('Could not mark setup as complete', 'error')
