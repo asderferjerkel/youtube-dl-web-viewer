@@ -1,5 +1,8 @@
 import os
-import sqlite3
+try:
+	import pysqlite3 as sqlite3
+except ImportError:
+	import sqlite3
 
 import click
 from flask import current_app, g

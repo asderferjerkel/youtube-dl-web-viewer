@@ -1,5 +1,8 @@
 import functools
-import sqlite3
+try:
+	import pysqlite3 as sqlite3
+except ImportError:
+	import sqlite3
 
 from flask import (Blueprint, g, current_app, flash, redirect, render_template,
 				   request, session, url_for)

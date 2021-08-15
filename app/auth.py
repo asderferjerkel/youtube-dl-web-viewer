@@ -12,7 +12,10 @@ from wtforms import (Form, StringField, PasswordField, BooleanField,
 from wtforms.validators import ValidationError
 from wtforms.widgets import HiddenInput
 
-import sqlite3
+try:
+	import pysqlite3 as sqlite3
+except ImportError:
+	import sqlite3
 from app.db import get_db, get_params
 
 blueprint = Blueprint('auth', __name__)
