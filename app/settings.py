@@ -83,7 +83,8 @@ def first_run():
 		
 		try:
 			user_id = add_user(username, password, is_admin = 1)
-		except sqlite3.OperationalError:
+		except sqlite3.OperationalError as e:
+			current_app.logger.error(f'Failed to create account: {e}')
 			flash('Failed to create account', 'error')
 		else:
 			# Log in immediately
@@ -94,7 +95,8 @@ def first_run():
 			db = get_db()
 			try:
 				db.execute('UPDATE params SET setup_complete = 1 ORDER BY rowid LIMIT 1')
-			except sqlite3.OperationalError:
+			except sqlite3.OperationalError as e:
+				current_app.logger.error(f'Failed to mark setup as complete: {e}')
 				flash('Could not mark setup as complete', 'error')
 			else:
 				db.commit()
