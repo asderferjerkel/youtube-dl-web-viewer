@@ -1,7 +1,10 @@
 import functools
 import json
-import sqlite3
 import threading
+try:
+	import pysqlite3 as sqlite3
+except ImportError:
+	import sqlite3
 
 from collections import OrderedDict
 from itertools import islice
