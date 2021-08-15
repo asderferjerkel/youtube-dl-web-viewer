@@ -42,6 +42,8 @@ def init_app(app):
 		except sqlite3.OperationalError as e:
 			# Task table could be missing if db not initialised
 			current_app.logger.warning('Could not clear task status: ' + str(e))
+		except Exception as e:
+			current_app.logger.warning('Could not clear task status & unknown exception: ' + str(e))
 
 def csrf_protect(view):
 	@functools.wraps(view)
