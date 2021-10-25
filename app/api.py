@@ -38,7 +38,7 @@ def init_app(app):
 	"""Reset running task on server restart"""
 	with app.app_context():
 		try:
-			set_task(status = 0)
+			set_task()
 		except sqlite3.OperationalError as e:
 			# Task table could be missing if db not initialised
 			current_app.logger.warning(f'Could not reset tasks: {e}')
@@ -886,6 +886,20 @@ def status():
 	return jsonify({'result': 'ok',
 					'refresh_due': refresh_due,
 					'data': task})
+
+@blueprint.route('/dismiss')
+@login_required('user', api = True)
+def dismiss():
+	"""Clear the latest task status"""
+	try:
+		set_task()
+	except sqlite3.OperationalError as e:
+		current_app.logger.error('Failed to clear status: ' + str(e))
+		return jsonify({'result': 'error',
+						'message': 'Failed to clear status: ' +
+						'Database error'}), 500
+	
+	return jsonify({'result': 'ok'})
 
 @blueprint.route('/prefs/<string:pref>/<string:value>')
 @login_required('user', api = True)

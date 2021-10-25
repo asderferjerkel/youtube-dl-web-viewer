@@ -212,6 +212,96 @@ document.addEventListener("DOMContentLoaded", (event) => {
 		fullDescription(false);
 	});
 	
+	// Keyboard shortcuts
+	window.addEventListener("keydown", (event) => {
+		// Ignore if search input selected or modifier keys
+		if ((event.target !== searchInput) &&
+			!(event.ctrlKey || event.altKey || event.metaKey)) {
+				switch (event.key) {
+					case "?":
+						const helpText = "Keyboard shortcuts:\n\n" +
+										 "k : play/pause\n" +
+										 "j : seek backwards\n" +
+										 "l : seek forwards\n" +
+										 ", : previous frame\n" +
+										 ". : next frame\n" +
+										 "p : previous video\n" +
+										 "n : next video\n" +
+										 "s : stop\n" +
+										 "f : fullscreen\n" +
+										 "m : mute\n" +
+										 "/ : search"
+						addMessage(helpText, "keyboard-help");
+						break;
+					case " ":
+					case "k":
+						// Toggle play/pause
+						player.paused ? playVideo() : player.pause();
+						break;
+					case "l":
+						// Seek forwards
+						player.currentTime = Math.min(player.currentTime +
+													  defaultSkipTime,
+													  player.duration);
+						break;
+					case "j":
+						// Seek backwards
+						player.currentTime = Math.max(player.currentTime -
+													  defaultSkipTime, 0);
+						break;
+					case ".":
+						// Seek forwards one frame (if paused)
+						if (player.paused) {
+							player.currentTime = Math.min(player.currentTime +
+														  1/current.video.fps,
+														  player.duration);
+						} else {
+							addMessage("Pause video to seek by frame",
+									   "seek-help", true);
+						}
+						break;
+					case ",":
+						// Seek backwards one frame (if paused)
+						if (player.paused) {
+							player.currentTime = Math.max(player.currentTime -
+														  1/current.video.fps,
+														  0);
+						} else {
+							addMessage("Pause video to seek by frame",
+									   "seek-help", true);
+						}
+						break;
+					case "n":
+						// Next video
+						changeVideo("next");
+						break;
+					case "p":
+						// Previous video
+						changeVideo("previous");
+						break;
+					case "s":
+						// Stop video
+						unloadCurrent("video");
+						break;
+					case "f":
+						// Toggle fullscreen
+						document.fullscreen ? document.exitFullscreen() :
+											  player.requestFullscreen();
+						break;
+					case "m":
+						// Toggle mute
+						player.muted = player.muted ? false : true;
+						break;
+					case "/":
+						// Open search
+						event.preventDefault(); // Don't type /
+						header.classList.add("search-toggled");
+						searchInput.select();
+						break;
+				}
+		}
+	});
+	
 	// Video ended
 	player.addEventListener("ended", () => {
 		if (displayPrefs.autoplay) {
@@ -591,8 +681,6 @@ function displayVideo(video) {
 	// Show info container
 	infoContainer.classList.remove("hidden");
 	// Don't fade description if previously expanded
-	// todo: fix this. only do on small screens?
-	// also todo: set max-height on info not descriptioncontainer, consider long titles
 	if (!fullHeight) {
 		// Set description container to overflow
 		fullDescription(false);
@@ -694,24 +782,18 @@ function intersectionChanged(entries, observer) {
 
 
 // Search metadata fields for videos
-// todo: remove many console.log
 let prevQuery = searchInput.value;
 function searchVideos(checkInputChanged = true) {
 	const searchQuery = searchInput.value;
 	if (!checkInputChanged || searchQuery !== prevQuery) {
 		// Input changed
-		console.log('input changed', prevQuery, '->', searchQuery);
 		prevQuery = searchQuery;
 		if (searchQuery.length === 0) {
 			// Input cleared, clear results
-			console.log('input cleared');
 			displaySearch(null);
 		} else if (searchQuery.length >= 3) {
 			// Input over minimum length, do search
-			console.log('doing search');
 			loadSearch(searchField.value, searchQuery);
-		} else {
-			console.log('under min length');
 		}
 	}
 };			
@@ -720,7 +802,6 @@ let abortController = null;
 async function loadSearch(field, query) {
 	if (abortController) {
 		// Cancel the previous request if pending
-		console.log('cancelling previous request');
 		abortController.abort();
 		abortController = null;
 	}
@@ -743,8 +824,7 @@ function displaySearch(results) {
 	let newResultsList = searchResults.cloneNode(false);
 	let thumbQueue = new Map();
 	if (results) {
-		// show new results
-		console.log('have results');
+		// Show new results
 		if (results.length > 0) {
 			const template = document.getElementById("template-result");
 			results.forEach((result) => {
@@ -785,31 +865,10 @@ function displaySearch(results) {
 	searchResults = newResultsList;
 	showResults();
 	
-	console.log(thumbQueue);
 	if (getThumbs && thumbQueue.size > 0) {
 		// Trigger thumbnail load
 		loadThumbs(thumbQueue);
 	}
-	
-	
-	// display matches: template w/ thumb placeholder (push into queue w/ ID), title, snippet, click listener to loadVideo
-	// load thumbs
-	
-	// then the search button listener opens the field and focuses (with existing search if not changed)
-	// unfocusing on the field hides the list (ie once clicked? or just hide in the click listener)
-	// or tapping anywhere but it
-	// or search icon turns into an X
-	// have fixed max height but can scroll
-	/*
-	listen for changes
-	if changed, start timer
-	if now >3 characters, search for results
-	in showResults, add listener for clicked outside results to hide them (but keep search bar)
-	clicking on search bar again (listen for focus not click, as opening search doesn't trigger click on it) should show results again
-	*/
-	
-	// if that works in the right order then sack off this indexed dict bs
-	// (compare with rank order from shell then remove rank from db return)
 };
 
 // Show results container
@@ -817,10 +876,8 @@ function showResults() {
 	searchResults.classList.remove("hidden");
 	// Click outside search hides
 	document.addEventListener("click", function hideResults(event) {
-		console.log(event.target);
 		if (event.target.closest("#search") === null) {
 			searchResults.classList.add("hidden");
-			console.log("removing listener");
 			document.removeEventListener("click", hideResults);
 		}
 	});
@@ -829,11 +886,11 @@ function showResults() {
 // Play the currently-loaded video
 const playManual = playerContainer.querySelector(".play-manual");
 function playVideo() {
+	// Hide manual play button if present
+	playManual.classList.add("hidden");
 	// Play video
 	player.play()
 	.then(() => {
-		// Hide manual play button if present
-		playManual.classList.add("hidden");
 		// Set up mediaSession for media notification
 		if ("mediaSession" in navigator) {
 			let thumbnail = [];
@@ -853,6 +910,7 @@ function playVideo() {
 				album: current.video.folder_name,
 				artwork: thumbnail
 			});
+			updatePositionState();
 		}
 	})
 	.catch(error => {
@@ -880,7 +938,6 @@ async function changeVideo(direction = "next") {
 					 ? index[current.video.id] + 1
 					 : index[current.video.id] - 1);
 		if (playlist[newIndex] !== undefined) {
-			console.log("Playing " + direction + " video");
 			let newVideoID = playlist[newIndex].id;
 			// Select video
 			selectItem("video", newVideoID);
@@ -1099,7 +1156,7 @@ Toggle displaying full or clipped description
   show = true: full-height description & "show less"
   show = false: description overflows & "show more"
 */
-let fullHeight = true; // Page load default (todo: fix all this, mayb only show on mob)
+let fullHeight = false; // Page load default
 function fullDescription(show = true) {
 	fullHeight = (show ? true : false);
 	infoContainer.classList[show ? "add" : "remove"]("full-height");
@@ -1162,10 +1219,12 @@ async function updatePrefs(pref, value) {
 }
 
 
-// Set up media notification controls
+/**
+Set up media notification controls
+*/
 function updatePositionState() {
-	if ("mediaSession" in navigator &&
-		"setPositionState" in navigator.mediaSession) {
+	if ("setPositionState" in navigator.mediaSession) {
+		// Set duration
 		navigator.mediaSession.setPositionState({
 			duration: player.duration,
 			playbackRate: player.playbackRate,
@@ -1175,6 +1234,7 @@ function updatePositionState() {
 }
 
 if ("mediaSession" in navigator) {
+	// Set up notification buttons
 	navigator.mediaSession.setActionHandler("play", async function() {
 		// No need to set metadata again as notification only shown
 		// when a video is already loaded and playing/paused
@@ -1198,11 +1258,13 @@ if ("mediaSession" in navigator) {
 		// Max skip to end of video
 		player.currentTime = Math.min(player.currentTime +
 									  skipTime, player.duration);
+		updatePositionState();
 	});
 	navigator.mediaSession.setActionHandler("seekbackward", function(event) {
 		const skipTime = event.seekOffset || defaultSkipTime;
 		// Min skip to start of video
 		player.currentTime = Math.max(player.currentTime - skipTime, 0);
+		updatePositionState();
 	});
 	try { // Notification closed (only recent browsers)
 		navigator.mediaSession.setActionHandler("stop", function() {

@@ -201,8 +201,6 @@ table {
 	   Sidebar fixed based on font size (slightly responsive to viewport width)
 	   Outer padding only when excess width */
 	grid-template-columns: [page-left] 1fr [main-left] minmax(0, 60vw) [main-right] minmax(0, 25rem) [sidebar-right] 1fr [page-right];
-	/* todo: not convinced this is even needed */
-	/* grid-template-rows: [header-top] auto [header-bottom messages-top] min-content [messages-bottom]; */
 	column-gap: 1rem;
 }
 
@@ -219,14 +217,13 @@ table {
 	
 	header {
 		grid-column: main-left / sidebar-right;
-		/* todo: probably remove see container */
-		/* grid-row: header-top / header-bottom; */
 		grid-row: 1; /* Stack above background */
 		
 		display: grid;
-		/* grid-template-columns: 0 [logo] max-content [title-right nav-left] 1fr [nav-right] 0; */
 		/* minmax(0, max-content): search column no space when hidden */
-		grid-template-columns: 0 auto minmax(max-content, 1fr) minmax(0, max-content) auto auto 0;
+		/* grid-template-columns: 0 auto minmax(max-content, 1fr) minmax(0, max-content) auto auto 0; */
+		/* min-content so search fits small screen */
+		grid-template-columns: 0 auto minmax(min-content, 1fr) minmax(0, min-content) auto auto 0;
 		grid-template-areas:
 			" . logo pages search toggles user . ";
 		
@@ -342,7 +339,6 @@ table {
 				
 				position: relative;
 				height: 2.75rem;
-				/* margin: 0 0.5rem 0.5rem; */
 				background: var(--background);
 				z-index: 1;
 			}
@@ -784,6 +780,14 @@ table {
 				row-gap: 0.3rem;
 			}
 			
+				.info-container:not(.full-height) .info {
+					/* Overflow and fade when not full height */
+					overflow: hidden;
+					max-height: 11rem; /* ~fits in a 1920x1080 16:9 viewport */
+					-webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+					mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+				}
+			
 				.title {
 					grid-area: title;
 					
@@ -881,14 +885,6 @@ table {
 					margin-top: 0.75rem;
 				}
 				
-				.info-container:not(.full-height) .description-container {
-					/* Overflow and fade when not full height */
-					overflow: hidden;
-					max-height: 4.75rem; /* ~fits in a 1920x1080 16:9 viewport */
-					-webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-					mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-				}
-				
 					.description {
 						grid-area: desc-text;
 						
@@ -920,13 +916,14 @@ table {
 				display: flex;
 				justify-content: center;
 				width: 100%;
-				bottom: -0.5rem;
+				bottom: -1.5rem;
 				/* Offset left/right padding difference on container */
 				margin-left: -2rem;
 			}
 			
 				.show-more a {
 					cursor: pointer;
+					padding: 1rem; /* Easier clickin' */
 				}
 			
 				.full-height .less-link, .more-link {

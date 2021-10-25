@@ -166,6 +166,7 @@
 						// Wait for opacity animation to finish
 						setTimeout(() => {
 							// Remove notification
+							// Will fail if already closed but nw
 							notifications.removeChild(element);
 						}, delay.notificationAnim);
 					}, delayFor);
@@ -257,6 +258,7 @@
 				let endpoint = (rescan ? "rescan" : "refresh")
 				//let message = "Database " + endpoint + " started"
 				//addMessage(message, null, true);
+				// todo: whats goin on here
 				// Don't wait for return
 				loadJSON(endpoint);
 				// Clear timers and update status immediately
@@ -281,20 +283,24 @@
 					timers.often = setTimeout(updateStatus, delay.refreshStatus);
 				} else if (task.status === 0) {
 					// Task complete/none running
-					// Generic message if already cleared
-					task.message = (task.message === null
-								   ? "Database update complete" : task.message);
-					// Offer playlist refresh if on video page
-					const action = (typeof(loadFolders) === "function"
-								 ? loadFolders : null);
-					addMessage(task.message, "status", true, "info", null,
-							   "Reload playlists", action);
+					if (task.message !== null) {
+						// Display message if not cleared
+						// Offer playlist refresh if on video page
+						const action = (typeof(loadFolders) === "function"
+									 ? loadFolders : null);
+						addMessage(task.message, "status", true, "info", null,
+								   "Reload playlists", action);
+						// Clear message once seen
+						loadJSON("dismiss");
+					}
 					// Return to lazily checking status
 					timers.lazy = setTimeout(lazyUpdateStatus, delay.checkStatus);
 				} else if (task.status === -1) {
 					// Task error
 					addMessage(task.message, "status", false, "error", null,
 							   "Open error log", "link", [baseUrl + "log"]);
+					// Clear message once seen
+					loadJSON("dismiss");
 					// Return to lazily checking status
 					timers.lazy = setTimeout(lazyUpdateStatus, delay.checkStatus);
 				} else {
