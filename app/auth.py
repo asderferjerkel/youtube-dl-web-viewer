@@ -73,7 +73,6 @@ class AdminUpdateUser(Form):
 	user_id = IntegerField(widget=HiddenInput())
 	username = StringField('Username', [validators.InputRequired(), validators.Length(min = 1, max = 255), username_available_current])
 	password = PasswordField('Password', [validators.Optional(), validators.Length(min = 6, max = 255)])
-	# todo: set to BooleanSubField if necessary
 	is_admin = BooleanField('Admin', [protect_self])
 	# Defaults unchecked
 	delete_user = BooleanField('Delete user', [protect_self])

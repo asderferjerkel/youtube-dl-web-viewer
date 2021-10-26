@@ -84,10 +84,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	// Load from state when history navigated
 	window.addEventListener("popstate", (event) => {
 		if (event.state !== null) {
-			// todo: once added current.folder (done as current.playlist.id), if playlist hasn't changed between pages (current.folder = event.state.playlistID w/e), don't reload playlist, just mark selected appropriate vid
-			// treat video and playlist separately: load playlist if different, load video if exists; if no playlist loaded unload it, if no video loaded unload it
-			// eventually consider adding in folder list: if can load video, has playlist, but not in list of playlists, don't display the playlist
-			//   - maybe just make life easier and load folders after video + playlist
 			if (event.state.type === "playlist") {
 				// Playlist (but no video) loaded
 				unloadCurrent("video");
@@ -326,9 +322,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
 async function loadFolders() {
 	const folders = await loadJSON("playlists");
 	// Sort folders by key and map values to array
-	// todo: map instead, keeps order
-	//let foldersSort = Object.keys(folders.data).sort().map((index) => folders.data[index]);
-	// todo: ^^delete that already sorted see api
 	if (folders.data.length === 0) {
 		// No folders, replace with placeholder
 		unloadCurrent("folders");
@@ -385,11 +378,6 @@ async function loadPlaylist(playlistID, addHistory = true) {
 	const playlist = await loadJSON("playlist", playlistID,
 									displayPrefs.sort_by,
 									displayPrefs.sort_direction);
-	// todo: delete
-	//current.playlist.length = 0; // Empty
-	// Create array by play order
-	//Object.keys(playlist.data).forEach(
-	//	key => current.playlist.push(playlist.data[key]));
 	current.playlist = playlist.data;
 	current.playlist.id = playlistID;
 	if (current.video === undefined) {
@@ -450,7 +438,6 @@ function displayPlaylist(playlist) {
 	videoList = newVideoList;
 	
 	// Observe visibility changes in videos to load thumbs
-	// todo: can get the new element from appendChild above and observe there
 	if (getThumbs) {
 		if (typeof(observer.disconnect) !== "undefined") {
 			// Disconnect any existing observer
@@ -925,6 +912,7 @@ function playVideo() {
 
 
 // Change to the next or previous video
+// todo: poss add await to loadVideo(s) so can't get lost in race conditions (click next loadsa times youll see)
 async function changeVideo(direction = "next") {
 	// Select normal or shuffled playlist depending on prefs
 	playlist = (displayPrefs.shuffle
@@ -953,7 +941,6 @@ async function changeVideo(direction = "next") {
 		console.log("No previous video loaded")
 		if (current.playlist.id === undefined) {
 			// No playlist loaded
-			// todo: have an array of playlists. take element out of selectItem if not using it (+ shift a brace down i think)
 			// Select first playlist
 			let firstPlaylist = playlistList.querySelector(".playlist");
 			if (firstPlaylist !== null) {
