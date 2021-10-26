@@ -200,7 +200,7 @@ table {
 	/* Player based on viewport width but can shrink
 	   Sidebar fixed based on font size (slightly responsive to viewport width)
 	   Outer padding only when excess width */
-	grid-template-columns: [page-left] 1fr [main-left] minmax(0, 60vw) [main-right] minmax(0, 25rem) [sidebar-right] 1fr [page-right];
+	grid-template-columns: [page-left] 1fr [main-left] minmax(0, 58vw) [main-right] minmax(0, 25rem) [sidebar-right] 1fr [page-right];
 	column-gap: 1rem;
 }
 
@@ -899,7 +899,7 @@ table {
 				display: flex;
 				justify-content: center;
 				width: 100%;
-				bottom: -1rem;
+				bottom: -1.5rem;
 				/* Offset left/right padding difference on container */
 				margin-left: -2rem;
 			}
@@ -907,6 +907,7 @@ table {
 				.show-more button {
 					width: 2.5rem;
 					height: 2.5rem;
+					margin-bottom: 0.5rem; /* Some breathing room to bottom */
 					padding: 0.5rem; /* Easier clickin' */
 					background: none;
 					cursor: pointer;
