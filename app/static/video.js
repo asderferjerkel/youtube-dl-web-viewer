@@ -478,13 +478,6 @@ function displayPlaylist(playlist) {
 // Load, display and play a video by its ID
 // If addHistory = false, replaces current entry instead of adding
 async function loadVideo(videoID, addHistory = true) {
-	// Remove current poster if present
-	player.removeAttribute("poster");
-	// Remove current source
-	const source = player.getElementsByTagName("source")[0];
-	if (source !== undefined) {
-		player.removeChild(source);
-	}
 	const video = await loadJSON("video", videoID);
 	current.video = video.data;
 	// Update page URL
@@ -498,6 +491,13 @@ async function loadVideo(videoID, addHistory = true) {
 }
 
 function displayVideo(video) {
+	// Remove current poster if present
+	player.removeAttribute("poster");
+	// Remove current source
+	const source = player.getElementsByTagName("source")[0];
+	if (source !== undefined) {
+		player.removeChild(source);
+	}
 	// Create new source
 	const newSource = document.createElement("source");
 	newSource.src = video.path;
