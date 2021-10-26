@@ -23,32 +23,32 @@ If you're anything like me, you have a mess of folders filled with videos you've
 
 These instructions have been tested on Debian and Cygwin, but should work on most OSs with a little modification. youtube-dl-web-viewer is written in Python 3 (tested with 3.6+), so install it if you haven't already:
 
-Debian/Ubuntu: `sudo apt install python3`
-Cygwin: Install the python38 package.
+>Debian/Ubuntu: `sudo apt install python3`  
+>Cygwin: Install the python38 package.  
 
 You will also need some system packages:
 
-Debian/Ubuntu: `sudo apt install python3-dev python3-setuptools python3-pip python3-venv python3-wheel`
-Cygwin: Install python38-devel, python38-setuptools, python38-pip, python38-virtualenv, python38-wheel
+>Debian/Ubuntu: `sudo apt install python3-dev python3-setuptools python3-pip python3-venv python3-wheel`  
+>Cygwin: Install python38-devel, python38-setuptools, python38-pip, python38-virtualenv, python38-wheel  
 
 And some more for thumbnail generation support:
 
-Debian (and similar Linux): `sudo apt install zlib1g-dev libjpeg8-dev libwebp-dev`
-MacOS: `brew install libjpeg webp`
-Cygwin: Install zlib-devel, libjpeg-devel, libwebp-devel
+Debian (and similar Linux): `sudo apt install zlib1g-dev libjpeg8-dev libwebp-dev`  
+MacOS: `brew install libjpeg webp`  
+Cygwin: Install zlib-devel, libjpeg-devel, libwebp-devel  
 
 Download this repo as a .zip file, extract it and enter the directory:
 `cd youtube-dl-web-viewer`
 
 Create and activate a virtual environment:
 
-`python3 -m venv venv`
-`. venv/bin/activate`
+`python3 -m venv venv`  
+`. venv/bin/activate`  
 
 Ensure pip and wheel are up to date:
 
-`pip install --upgrade pip`
-`pip install --upgrade wheel`
+`pip install --upgrade pip`  
+`pip install --upgrade wheel`  
 
 We require a recent version of the sqlite3 library for full-text search. If you're using an earlier Python version than 3.8, manually install the latest version and ytdl-web will use it if available:
 
@@ -64,9 +64,9 @@ Install the rest of the project's requirements:
 
 Finally, create an instance folder, copy `config.py-dist` to `instance/config.py` and set the secret key to something random to protect your user sessions:
 
-`mkdir instance`
-`cp config.py-dist instance/config.py`
-`nano config.py`
+`mkdir instance`  
+`cp config.py-dist instance/config.py`  
+`nano config.py`  
 
 ```
 # Secret key: set this to something random to protect your sessions
@@ -100,9 +100,9 @@ Replace `/path/to/youtube-dl-web-viewer` as appropriate. `/video` is the web pat
 
 Next, copy `app/flaskapp.wsgi-dist` to `app/flaskapp.wsgi` and update the path to youtube-dl-web-viewer:
 
-`cd app/`
-`cp flaskapp.wsgi-dist flaskapp.wsgi`
-`nano flaskapp.wsgi`
+`cd app/`  
+`cp flaskapp.wsgi-dist flaskapp.wsgi`  
+`nano flaskapp.wsgi`  
 
 ```
 sys.path.insert(0, '/path/to/youtube-dl-web-viewer')
@@ -110,8 +110,8 @@ sys.path.insert(0, '/path/to/youtube-dl-web-viewer')
 
 Finally, you'll need to make sure that the user your webserver runs as can execute the app and create the database. The easiest way to do this is to give the webserver's group ownership of the app, and allow it to write to the instance folder:
 
-`chgrp -R www-data /path/to/youtube-dl-web-viewer`
-`chmod g+w /path/to/youtube-dl-web-viewer/instance`
+`chgrp -R www-data /path/to/youtube-dl-web-viewer`  
+`chmod g+w /path/to/youtube-dl-web-viewer/instance`  
 
 Reload apache2 with `sudo service apache2 reload` and test! If you get lost, [the Flask documentation](https://flask.palletsprojects.com/en/1.1.x/deploying/mod_wsgi/) is a good place to start.
 
