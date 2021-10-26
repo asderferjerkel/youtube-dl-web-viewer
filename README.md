@@ -17,7 +17,7 @@ If you're anything like me, you have a mess of folders filled with videos you've
 * Dark mode
 * Pretty cute imo
 
-![Mobile view](docs/desktop.png)
+![Mobile view](docs/mobile.png)
 
 ## Installation
 

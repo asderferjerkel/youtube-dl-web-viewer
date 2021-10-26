@@ -1,11 +1,11 @@
 # notes
 design/
-# paths and secrets, users will copy template from -dist
+# paths and secrets
 app/flaskapp.wsgi
 instance/
 # test data
 testvideos/
-# virtualenv (create separately on remote)
+# virtualenv
 venv*/
 # build stuff
 dist/
