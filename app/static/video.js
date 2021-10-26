@@ -478,26 +478,26 @@ function displayPlaylist(playlist) {
 // Load, display and play a video by its ID
 // If addHistory = false, replaces current entry instead of adding
 async function loadVideo(videoID, addHistory = true) {
-	// Remove current poster if present
-	player.removeAttribute("poster");
-	// Remove current source to stop download for faster loading
-	const source = player.getElementsByTagName("source")[0];
-	if (source !== undefined) {
-		player.removeChild(source);
-	}
-	// Update page URL immediately
+	const video = await loadJSON("video", videoID);
+	current.video = video.data;
+	// Update page URL
 	window.history[addHistory ? "pushState" : "replaceState"](
 			{"type": "video", "id": videoID},
 			"", // title
 			baseUrl + "v/" + videoID);
-	const video = await loadJSON("video", videoID);
-	current.video = video.data;
-	// Set title once we have it
+	// Browsers don't support history.pushState title so set directly
 	document.title = current.video.title + titleSuffix;
 	displayVideo(current.video);
 }
 
 function displayVideo(video) {
+	// Remove current poster if present
+	player.removeAttribute("poster");
+	// Remove current source
+	const source = player.getElementsByTagName("source")[0];
+	if (source !== undefined) {
+		player.removeChild(source);
+	}
 	// Create new source
 	const newSource = document.createElement("source");
 	newSource.src = video.path;
@@ -882,10 +882,12 @@ function showResults() {
 // Play the currently-loaded video
 const playManual = playerContainer.querySelector(".play-manual");
 function playVideo() {
+	// Hide manual play button if present
+	playManual.classList.add("hidden");
 	// Play video
 	player.play()
 	.then(() => {
-		// Hide manual play button if present
+		// This is so buggy so make sure it's removed
 		playManual.classList.add("hidden");
 		// Set up mediaSession for media notification
 		if ("mediaSession" in navigator) {
