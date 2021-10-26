@@ -205,11 +205,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	});
 		
 	// "Show more"/"show less" clicked
-	infoContainer.querySelector(".more-link").addEventListener("click", () => {
-		fullDescription(true);
-	});
-	infoContainer.querySelector(".less-link").addEventListener("click", () => {
-		fullDescription(false);
+	infoContainer.querySelector(".show-more button").addEventListener("click", () => {
+		infoContainer.classList.toggle("full-height");
 	});
 	
 	// Keyboard shortcuts
@@ -316,7 +313,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 	let resizeTimer;
 	window.addEventListener("resize", () => {
 		// If not already expanded
-		if (!fullHeight) {
+		if (!infoContainer.classList.contains("full-height")) {
 			clearTimeout(resizeTimer); // Reset delay if resize ongoing
 			// Once resize stopped for inputDelay, test description overflow
 			resizeTimer = setTimeout(descriptionOverflow, inputDelay);
@@ -680,14 +677,13 @@ function displayVideo(video) {
 	
 	// Show info container
 	infoContainer.classList.remove("hidden");
-	// Don't fade description if previously expanded
-	if (!fullHeight) {
-		// Set description container to overflow
-		fullDescription(false);
-		// Test overflow: if yes, fade description and display "show more" link
-		// 				  if no, remove fade and hide "show more" link
-		descriptionOverflow();
-	}
+	
+	// Test if description fits and fade if not
+	// Allow to overflow
+	infoContainer.classList.remove("full-height");
+	// Test overflow: if yes, fade description and display "show more" link
+	// 				  if no, remove fade and hide "show more" link
+	descriptionOverflow();
 	
 	// Play video
 	playVideo();
@@ -1151,29 +1147,17 @@ function selectItem(type = "playlist", itemID = null,
 }
 
 
-/**
-Toggle displaying full or clipped description
-  show = true: full-height description & "show less"
-  show = false: description overflows & "show more"
-*/
-let fullHeight = false; // Page load default
-function fullDescription(show = true) {
-	fullHeight = (show ? true : false);
-	infoContainer.classList[show ? "add" : "remove"]("full-height");
-}
-
 // Show "show more" if description overflows container
 const showMore = infoContainer.querySelector(".show-more");
 function descriptionOverflow() {
-	if (!fullHeight) {
+	if (!infoContainer.classList.contains("full-height")) {
 		// Container height is limited, test overflow
-		if (descriptionContainer.offsetHeight <
-			descriptionContainer.scrollHeight) {
-			// Description overflows, show links
+		if (info.offsetHeight + 1 < info.scrollHeight) {
+			// Description overflows, fade and show button
 			showMore.classList.remove("hidden");
 		} else {
-			// Description fits, hide fade and links
-			fullDescription(true);
+			// Description fits, show in full and hide button
+			infoContainer.classList.add("full-height");
 			showMore.classList.add("hidden");
 		}
 	}

@@ -558,7 +558,7 @@ def refresh_db(rescan = False):
 							with_warnings = True
 							app.logger.warning('Could not open thumbnail: ' + str(e))
 						
-					# Add to database
+					# Add thumbs to database
 					try:
 						set_task(status = 1, message = 'Adding thumbnails to database')
 					except sqlite3.OperationalError:

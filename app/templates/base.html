@@ -131,8 +131,6 @@
 				if (progress != null) {
 					let progressTemplate = template.progress.content
 						.cloneNode(true);
-					console.log(progress, progressTemplate,
-								progressTemplate.querySelectorAll("span"));
 					progressTemplate.querySelectorAll("span").forEach(
 						(element, index) => {
 						// Fill folder, of-folders, file, of-files
@@ -273,7 +271,6 @@
 			async function updateStatus() {
 				let response = await loadJSON("status");
 				let task = response.data;
-				console.log(task);
 				if (task.status === 1) {
 					// Task running
 					let progress = [task.folder, task.of_folders,
